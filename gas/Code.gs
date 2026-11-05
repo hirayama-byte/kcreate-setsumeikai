@@ -46,7 +46,6 @@ function route_(req) {
   if (a === 'add') return add_(req.data || {}, !!req.sendMail);
   if (a === 'edit') return edit_(req.id, req.data || {});
   if (a === 'saveSettings') return saveSettings_(req.settings || {});
-  if (a === 'changePassword') return changePassword_(req.current, req.next);
   if (a === 'logout') { CacheService.getScriptCache().remove('tok_' + req.token); return { ok: true }; }
   throw new Error('不明な操作です');
 }
@@ -184,35 +183,18 @@ function fill_(t, vars) { return String(t || '').replace(/\{([^{}]+)\}/g, functi
 function birthText_(b) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b); return m ? m[1] + '年' + (+m[2]) + '月' + (+m[3]) + '日' : b; }
 
 // ---------- ログイン ----------
-function hash_(pw, salt) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + ':' + pw, Utilities.Charset.UTF_8)
-    .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
-}
-function setPassword_(pw) {
-  var salt = Utilities.getUuid(), p = PropertiesService.getScriptProperties();
-  p.setProperty('PW_SALT', salt); p.setProperty('PW_HASH', hash_(pw, salt));
-}
+// パスワードは固定（2026-11-05 オーナー指示: 本番・テストとも同じ値・画面からは変えられない）。値は Secret.gs の INIT_PW（GitHub には置かない）
 function login_(pw) {
   var cache = CacheService.getScriptCache(), fails = +(cache.get('fails') || 0);
   if (fails >= 10) return { error: 'パスワードの間違いが続いたため、10分ほど待ってからお試しください' };
-  var p = PropertiesService.getScriptProperties();
-  if (!p.getProperty('PW_HASH') && typeof INIT_PW !== 'undefined' && INIT_PW) setPassword_(INIT_PW); // 最初のパスワード（Secret.gs・GitHub には置かない）
-  var salt = p.getProperty('PW_SALT'), h = p.getProperty('PW_HASH');
-  if (!h || !pw || hash_(String(pw), salt) !== h) { cache.put('fails', String(fails + 1), 600); return { error: 'パスワードが違います' }; }
+  var fixed = typeof INIT_PW !== 'undefined' && INIT_PW ? String(INIT_PW) : '';
+  if (!fixed || !pw || String(pw) !== fixed) { cache.put('fails', String(fails + 1), 600); return { error: 'パスワードが違います' }; }
   var token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   cache.put('tok_' + token, '1', TOKEN_SEC);
   return { ok: true, token: token };
 }
 function auth_(token) {
   if (!token || !/^[0-9a-f]{64}$/.test(String(token)) || !CacheService.getScriptCache().get('tok_' + token)) { var e = new Error('ログインの期限が切れました。もう一度ログインしてください'); throw e; }
-}
-function changePassword_(cur, next) {
-  var p = PropertiesService.getScriptProperties();
-  if (hash_(String(cur || ''), p.getProperty('PW_SALT')) !== p.getProperty('PW_HASH')) return { error: '今のパスワードが違います' };
-  next = String(next || '');
-  if (next.length < 8) return { error: '新しいパスワードは8文字以上にしてください' };
-  setPassword_(next);
-  return { ok: true };
 }
 
 // ---------- 管理 ----------

@@ -185,13 +185,6 @@
             <div class="qr"><div id="qr"></div><div style="flex:1;min-width:200px"><div class="url" id="formUrl"></div>
               <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" id="copyUrl">URLをコピー</button><button class="btn sm" id="dlQr">QRを画像で保存</button><a class="btn sm" id="openForm" target="_blank" rel="noopener">フォームを開く</a></div></div></div>
           </div>
-          <div class="card">
-            <h2>パスワードの変更</h2>
-            <div class="f"><input type="password" id="pwCur" placeholder="今のパスワード" autocomplete="current-password" style="width:100%"></div>
-            <div class="f"><input type="password" id="pwNew" placeholder="新しいパスワード（8文字以上）" autocomplete="new-password" style="width:100%"></div>
-            <button class="btn" id="pwBtn">変更する</button>
-            <p class="none" style="margin:8px 0 0">パスワードは1つで、社内・クライアント共通です。変えたら関係者に伝えてください。</p>
-          </div>
         </div>
       </div>
     </section>
@@ -377,9 +370,6 @@ $('dlQr').onclick = function () {
   // 印刷用に大きめ（1000px）で作り直して保存
   var box = document.createElement('div'); new QRCode(box, { text: formUrl(), width: 1000, height: 1000, correctLevel: QRCode.CorrectLevel.M });
   setTimeout(function () { var c = box.querySelector('canvas'); var a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = '説明会応募フォーム_QR.png'; a.click(); }, 50);
-};
-$('pwBtn').onclick = function () {
-  api({ action: 'changePassword', current: $('pwCur').value, next: $('pwNew').value }).then(function () { $('pwCur').value = $('pwNew').value = ''; toast('パスワードを変更しました'); }).catch(function (e) { toast(e.message, true); });
 };
 
 // ---------- 電話受付の追加・編集 ----------

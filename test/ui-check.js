@@ -1,5 +1,6 @@
 // node test/ui-check.js — 画面の動作確認（先に node test/serve.js 8790 を起動）。スクリーンショットは test/shots/
 var pw = require(process.env.PW || 'playwright'), fs = require('fs'), path = require('path');
+var PASSWORD = require('./env.js').PASSWORD;
 var BASE = process.env.BASE || 'http://localhost:8790/';
 var SHOTS = path.join(__dirname, 'shots'); fs.mkdirSync(SHOTS, { recursive: true });
 var n = 0, ng = 0, jsErrors = [];
@@ -67,7 +68,7 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
   a.on('pageerror', function (e) { jsErrors.push('admin: ' + e.message); });
   await t('管理: パスワード違いは入れない → 正しいと一覧（3人・未連絡）', async function () {
     await a.goto(BASE + 'admin/'); await a.fill('#pw', 'wrong'); await a.click('#loginBtn'); await a.waitForSelector('#loginErr:has-text("違います")');
-    await a.fill('#pw', 'first-pass-123'); await a.click('#loginBtn'); await a.waitForSelector('#rows tr');
+    await a.fill('#pw', PASSWORD); await a.click('#loginBtn'); await a.waitForSelector('#rows tr');
     ok((await a.locator('#rows tr').count()) === 3); ok((await a.textContent('#kpis')).indexOf('3応募') >= 0, await a.textContent('#kpis'));
     ok(/受付担当のアドレスが未設定/.test(await a.textContent('#warnBox')), '未設定の注意');
     await a.screenshot({ path: path.join(SHOTS, 'admin-list.png') });
@@ -173,7 +174,7 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
   });
   await t('管理: スマホ幅でもページが横にはみ出さない（表は枠の中で横に動く）', async function () {
     var m = await phone.newPage(); await m.goto(BASE + 'admin/');
-    await m.fill('#pw', 'first-pass-123'); await m.click('#loginBtn'); await m.waitForSelector('#rows tr');
+    await m.fill('#pw', PASSWORD); await m.click('#loginBtn'); await m.waitForSelector('#rows tr');
     ok(await m.evaluate(function () { return document.documentElement.scrollWidth <= window.innerWidth; }), '横はみ出し ' + await m.evaluate(function () { return document.documentElement.scrollWidth; }));
     await m.screenshot({ path: path.join(SHOTS, 'admin-phone.png'), fullPage: true });
     await m.click('nav.tabs button[data-tab=tt]'); await m.screenshot({ path: path.join(SHOTS, 'admin-phone-tt.png'), fullPage: true });

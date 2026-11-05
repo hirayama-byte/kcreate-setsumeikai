@@ -6,7 +6,7 @@ function t(name, fn) { try { fn(); n++; console.log('  ok  ' + name); } catch (e
 function good(over) {
   return Object.assign({ name: '山田 花子', kana: 'やまだ はなこ', gender: '女性', birth: '1990-04-05', tel: '090-1234-5678', email: 'hanako@example.jp', wishes: ['14:00〜15:00', '10:00〜11:00'] }, over || {});
 }
-function login(g, pw) { var r = g.call({ action: 'login', password: pw || 'first-pass-123' }); assert.ok(r.token, JSON.stringify(r)); return r.token; }
+function login(g, pw) { var r = g.call({ action: 'login', password: pw || E.PASSWORD }); assert.ok(r.token, JSON.stringify(r)); return r.token; }
 function setup(g, st) { var tk = login(g); var r = g.call({ action: 'saveSettings', token: tk, settings: Object.assign({ title: '尾州物流 お仕事説明会', date: '2026年11月20日（金）', place: '一宮市民会館', staff: 'a@k-create.co.jp\nb@client.jp' }, st || {}) }); assert.ok(r.ok, JSON.stringify(r)); return tk; }
 
 t('公開の設定: 7枠（10〜17時・昼含む）・受付中', function () {
@@ -106,23 +106,20 @@ t('ログイン: パスワード違い・トークンなしは中身を見られ
   assert.ok(/ログイン/.test(g.call({ action: 'list', token: 'a'.repeat(64) }).error));
   assert.ok(/ログイン/.test(g.call({ action: 'saveSettings', token: 'x', settings: { open: false } }).error));
   for (var i = 0; i < 9; i++) g.call({ action: 'login', password: 'nope' + i });
-  assert.ok(/待って/.test(g.call({ action: 'login', password: 'first-pass-123' }).error), '10回目以降は正しくても止める');
+  assert.ok(/待って/.test(g.call({ action: 'login', password: E.PASSWORD }).error), '10回目以降は正しくても止める');
   delete g.env.cache.fails;
   var tk = login(g); assert.strictEqual(g.call({ action: 'list', token: tk }).applicants.length, 1);
   g.call({ action: 'logout', token: tk }); assert.ok(g.call({ action: 'list', token: tk }).error, 'ログアウト後は使えない');
 });
 
-t('パスワード変更: 今のパスワードが必要・8文字以上・変えたら新しい方でだけ入れる', function () {
+t('パスワードは固定: 変更の操作は無い・Secret.gs の値でだけ入れる', function () {
   var g = E.load(), tk = login(g);
-  assert.ok(g.call({ action: 'changePassword', token: tk, current: 'x', next: 'newpassword1' }).error);
-  assert.ok(g.call({ action: 'changePassword', token: tk, current: 'first-pass-123', next: 'short' }).error);
-  assert.ok(g.call({ action: 'changePassword', token: tk, current: 'first-pass-123', next: 'newpassword1' }).ok);
-  assert.ok(g.call({ action: 'login', password: 'first-pass-123' }).error);
-  assert.ok(g.call({ action: 'login', password: 'newpassword1' }).token);
-  assert.ok(!/newpassword1/.test(JSON.stringify(g.env.props)), 'パスワードそのものは保存しない');
+  assert.ok(/不明/.test(g.call({ action: 'changePassword', token: tk, current: E.PASSWORD, next: 'newpassword1' }).error));
+  assert.ok(g.call({ action: 'login', password: E.PASSWORD }).token);
+  assert.ok(g.call({ action: 'login', password: E.PASSWORD + ' ' }).error);
 });
 
-t('最初のパスワードが無いとログインできない', function () {
+t('パスワードの設定が無いとログインできない', function () {
   var g = E.load({ initPw: null }); assert.ok(g.call({ action: 'login', password: '' }).error); assert.ok(g.call({ action: 'login', password: 'undefined' }).error);
 });
 
