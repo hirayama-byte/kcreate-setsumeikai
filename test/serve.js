@@ -19,4 +19,4 @@ http.createServer(function (req, res) {
   var p = path.join(root, decodeURIComponent(u.pathname)); if (p.endsWith(path.sep) || p.endsWith('/')) p = path.join(p, 'index.html');
   if (!p.startsWith(root) || !fs.existsSync(p)) { res.statusCode = 404; res.end('not found'); return; }
   res.setHeader('content-type', types[path.extname(p)] || 'application/octet-stream'); fs.createReadStream(p).pipe(res);
-}).listen(port, function () { console.log('http://localhost:' + port + '/'); });
+}).listen(port, '127.0.0.1', function () { console.log('http://localhost:' + port + '/'); }); // このパソコンの中からだけ（社内のほかのPCからは開けない）
