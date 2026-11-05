@@ -22,7 +22,7 @@
   nav.tabs { display: flex; gap: 4px; background: rgba(255,255,255,.08); padding: 3px; border-radius: 10px; }
   nav.tabs button { background: none; border: 0; color: #cfe; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
   nav.tabs button.on { background: #fff; color: var(--side); }
-  main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+  main { padding: 16px; } /* PC の画面いっぱいに広げる（広い画面なら一覧は横スクロールなし） */
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; font-weight: 600; white-space: nowrap; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -234,6 +234,8 @@ function api(req) {
   });
 }
 try { S.token = sessionStorage.getItem('tok'); } catch (e) {}
+// サンプル画面（test/serve.js --sample）だけ: パスワードなしで開く。本番の config.js には SAMPLE_TOKEN は無い
+if (window.SAMPLE_TOKEN) { S.token = window.SAMPLE_TOKEN; S.sample = true; document.getElementById('logoutBtn').classList.add('hide'); }
 function logout(expired) { try { sessionStorage.removeItem('tok'); } catch (e) {} if (S.token && !expired) api({ action: 'logout' }).catch(function () {}); S.token = null; $('app').classList.add('hide'); $('loginView').classList.remove('hide'); if (expired) $('loginErr').textContent = 'ログインの期限が切れました。もう一度ログインしてください'; }
 $('loginForm').onsubmit = function (e) {
   e.preventDefault(); $('loginErr').textContent = ''; $('loginBtn').disabled = true;
@@ -263,6 +265,7 @@ function renderAll() {
   $('hTitle').innerHTML = esc(s.title) + '<small>' + esc([s.date, s.place].filter(String).join('・') || '開催日・会場は「設定」で入れられます') + '</small>';
   document.title = s.title + ' 応募管理';
   var w = [];
+  if (S.sample) w.push('これはサンプル画面です（架空のデータ・パスワードなし）。本番とはつながっていないので、自由に試せます。メールは送られません。');
   if (!d.staffValid.length) w.push('受付担当のアドレスが未設定です（応募があっても担当者にメールが届きません）。「設定」→「メール」で入れてください。');
   if (s.open !== '1') w.push('いまは応募を受け付けていません（フォームに「受付は終了しました」と出ます）。');
   var mailNg = d.applicants.filter(function (a) { return a.mail; }).length;

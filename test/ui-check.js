@@ -217,6 +217,32 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
     var f = path.join(__dirname, 'out-tt2.pdf'); await d.saveAs(f);
     var info = await pdfInfo(f); ok(info.pages >= 2, JSON.stringify(info));
   });
+  await t('応募者一覧: 広い画面（1920）では表が横スクロールなしで全部見える・狭いと枠の中で横スクロール', async function () {
+    await a.click('nav.tabs button[data-tab=list]');
+    await a.setViewportSize({ width: 1920, height: 900 }); await a.waitForTimeout(300);
+    var m = await a.evaluate(function () { var t = document.querySelector('#tab-list .tbl'); return { sw: t.scrollWidth, cw: t.clientWidth, page: document.documentElement.scrollWidth - innerWidth }; });
+    ok(m.sw <= m.cw && m.page <= 0, '1920: ' + JSON.stringify(m));
+    await a.screenshot({ path: path.join(SHOTS, 'admin-list-1920.png') });
+    await a.setViewportSize({ width: 1100, height: 820 }); await a.waitForTimeout(300);
+    m = await a.evaluate(function () { var t = document.querySelector('#tab-list .tbl'); return { sw: t.scrollWidth, cw: t.clientWidth, page: document.documentElement.scrollWidth - innerWidth }; });
+    ok(m.sw > m.cw && m.page <= 0, '1100: ' + JSON.stringify(m));
+    await a.setViewportSize({ width: 1366, height: 820 });
+  });
+  await t('サンプル画面（--sample）: パスワードなしで開く・架空のデータ入り・ログアウトは出ない', async function () {
+    var cp = require('child_process'), port = 8797;
+    var srv = cp.spawn(process.execPath, [path.join(__dirname, 'serve.js'), String(port), '--sample'], { stdio: 'ignore' });
+    try {
+      for (var i = 0; i < 40; i++) { try { await fetch('http://localhost:' + port + '/__mails'); break; } catch (e) { await new Promise(function (r) { setTimeout(r, 150); }); } }
+      await new Promise(function (r) { setTimeout(r, 300); });
+      var sp = await pc.newPage(); await sp.goto('http://localhost:' + port + '/admin/');
+      await sp.waitForSelector('#rows tr'); ok(await sp.locator('#loginView.hide').count() === 1, 'ログイン画面が出た');
+      ok(/日建ホームズ/.test(await sp.textContent('#hTitle')) && (await sp.locator('#rows tr').count()) === 7, '架空のデータ');
+      ok(/サンプル画面/.test(await sp.textContent('#warnBox')) && await sp.locator('#logoutBtn').isHidden());
+      await sp.close();
+    } finally { srv.kill(); }
+    // 本番と同じ config（SAMPLE_TOKEN なし）ではパスワードが要る
+    var np = await pc.newPage(); await np.goto(BASE + 'admin/'); await np.waitForSelector('#loginForm'); ok(await np.locator('#app.hide').count() === 1, '本番の形はログインが必要'); await np.close();
+  });
   await t('JSエラーなし', async function () { ok(!jsErrors.length, jsErrors.join(' / ')); });
   await b.close();
   console.log((ng ? n + ' 件 OK・' + ng + ' 件 NG' : n + ' 件 OK'));
