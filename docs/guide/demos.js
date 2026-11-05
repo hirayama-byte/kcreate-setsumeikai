@@ -206,12 +206,13 @@ DEMOS.timetable = { section: 'timetable', title: '時間割で振り分ける', 
   var head = await snap(p, d, 'tt-head', await clipOf(p, ['header.top'], 0), 760, '上のバー');
   d.steps.push(await step(p, head, 'nav.tabs button[data-tab=tt]', '上のバーの「時間割」を押します'));
   await p.click('nav.tabs button[data-tab=tt]'); await p.waitForTimeout(500);
-  var tt = await snap(p, d, 'tt', await clipOf(p, ['#tt .slot:nth-child(1)', '#tt .slot:nth-child(4)'], 6), 0, '時間割');
+  var tt = await snap(p, d, 'tt', await clipOf(p, ['#tab-tt .bar', '#tt .slot:nth-child(1)', '#tt .slot:nth-child(4)'], 6), 0, '時間割');
   d.steps.push(await step(p, tt, '#tt .slot:nth-child(1) .time', '時間帯ごとに、割り当てた人数と定員', { look: true }));
-  d.steps.push(await step(p, tt, '#tt .slot:nth-child(1) .chip.as', '割り当て済みの人と、その状況', { look: true }));
+  d.steps.push(await step(p, tt, '#tt .slot:nth-child(1) .chip.as', '割り当て済みの人（名前・電話番号・状況）。電話番号を押すと電話できます', { look: true }));
   d.steps.push(await step(p, tt, '#tt .slot:nth-child(1) .col:nth-child(3)', '候補 = まだ割り当てていない人のうち、この時間を希望している人（第何希望か）', { look: true }));
   d.steps.push(await step(p, tt, '#tt .slot:nth-child(1) .chip:not(.as) .add', '電話で決まったら「＋」で、この時間に割り当てます'));
   d.steps.push(await step(p, tt, '#tt .slot:nth-child(1) .chip.as .x', '「×」で割り当てを外せます'));
+  d.steps.push(await step(p, tt, '#ttPdfBtn', '当日用に「PDF（A4横）で出力」。そのまま印刷できます'));
 } };
 
 DEMOS.excel = { section: 'excel', title: 'Excel（A4）で出力して印刷する', run: async function (b, d) {

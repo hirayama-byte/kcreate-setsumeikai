@@ -110,7 +110,7 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
     await a.fill('[data-cap="10:00〜11:00"]', '1');
     ok((await a.locator('#qr canvas, #qr img').count()) >= 1, 'QR が出ない');
     await a.screenshot({ path: path.join(SHOTS, 'admin-settings.png'), fullPage: true });
-    await a.click('#saveSet'); await a.waitForSelector('.toast:has-text("保存")');
+    await a.click('#saveSet'); await a.waitForSelector('.toast:has-text("保存")'); await a.waitForFunction(function () { return /日建ホームズ/.test(document.getElementById('hTitle').textContent) && !/未設定/.test(document.getElementById('warnBox').textContent); });
     ok(!/受付担当のアドレスが未設定/.test(await a.textContent('#warnBox')));
     ok(/日建ホームズ/.test(await a.textContent('#hTitle')));
     await a.click('nav.tabs button[data-tab=tt]'); ok(/定員 1/.test(await a.locator('#tt .slot').nth(0).textContent()));
@@ -189,6 +189,33 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
     await gp.waitForLoadState(); ok(/使い方ガイド/.test(await gp.title()), await gp.title());
     ok((await gp.locator('.demo[data-demo]').count()) === 10, '動きで見る 10本');
     await gp.close();
+  });
+  await t('時間割: 名前のあとに電話番号（押すと電話）', async function () {
+    await a.click('nav.tabs button[data-tab=tt]'); await a.waitForSelector('#tt .slot');
+    var chip = a.locator('#tt .chip').first(); var txt = await chip.textContent();
+    ok(/\d{2,4}-\d{2,4}-\d{4}/.test(txt), txt);
+    ok(/^tel:\d+$/.test(await chip.locator('a.ctel').getAttribute('href')));
+  });
+  async function pdfInfo(file) {
+    var buf = fs.readFileSync(file), s = buf.toString('latin1');
+    return { head: s.slice(0, 5), pages: (s.match(/\/Type \/Page[^s]/g) || []).length, box: (/\/MediaBox \[([^\]]+)\]/.exec(s) || [])[1] };
+  }
+  await t('時間割の PDF: A4横・1ページ・ファイル名', async function () {
+    var dl = a.waitForEvent('download'); await a.click('#ttPdfBtn'); var d = await dl;
+    ok(/_時間割_\d{8}\.pdf$/.test(d.suggestedFilename()), d.suggestedFilename());
+    var f = path.join(__dirname, 'out-tt.pdf'); await d.saveAs(f);
+    var info = await pdfInfo(f);
+    ok(info.head === '%PDF-' && info.pages === 1, JSON.stringify(info));
+    var w = info.box.trim().split(/\s+/).map(Number); ok(Math.round(w[2]) === 842 && Math.round(w[3]) === 595, 'A4横 ' + info.box);
+    await a.waitForSelector('.toast:has-text("PDF を出力しました")'); ok(await a.isEnabled('#ttPdfBtn'), 'ボタンが戻る');
+  });
+  await t('時間割の PDF: 人が多いと次のページへ続く（ページ番号つき）', async function () {
+    var tk = (await (await fetch(BASE + 'api', { method: 'POST', body: JSON.stringify({ action: 'login', password: PASSWORD }) })).json()).token;
+    for (var i = 0; i < 45; i++) await fetch(BASE + 'api', { method: 'POST', body: JSON.stringify({ action: 'add', token: tk, data: { name: '多人数 ' + i, kana: 'たにんずう', tel: '090-0000-' + String(1000 + i), wishes: ['13:00〜14:00'], slot: i % 2 ? '13:00〜14:00' : '' } }) });
+    await a.click('#reloadBtn'); await a.waitForTimeout(600);
+    var dl = a.waitForEvent('download'); await a.click('#ttPdfBtn'); var d = await dl;
+    var f = path.join(__dirname, 'out-tt2.pdf'); await d.saveAs(f);
+    var info = await pdfInfo(f); ok(info.pages >= 2, JSON.stringify(info));
   });
   await t('JSエラーなし', async function () { ok(!jsErrors.length, jsErrors.join(' / ')); });
   await b.close();
