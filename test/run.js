@@ -169,5 +169,56 @@ t('壊れた送信でも落ちない', function () {
   assert.ok(g.call({ action: 'apply', data: { wishes: 'x' } }).errors.wishes);
 });
 
+
+t('電話受付の追加: 必須はお名前・ふりがな・電話だけ・経路は電話・状況は既定で連絡済み・メールは送らない', function () {
+  var g = E.load(), tk = setup(g);
+  var r = g.call({ action: 'add', token: tk, data: {} });
+  assert.deepStrictEqual(Object.keys(r.errors).sort(), ['kana', 'name', 'tel']);
+  r = g.call({ action: 'add', token: tk, data: { name: '電話 太郎', kana: 'でんわ たろう', tel: '0586-11-2222' } });
+  assert.ok(r.ok, JSON.stringify(r));
+  var a = g.call({ action: 'list', token: tk }).applicants[0];
+  assert.strictEqual(a.source, '電話'); assert.strictEqual(a.status, '連絡済み'); assert.strictEqual(a.email, ''); assert.strictEqual(a.wish1, '');
+  assert.strictEqual(g.env.sent.length, 0, '受付担当にも本人にも送らない');
+});
+t('電話受付の追加: 割当・状況・メモ・希望も入れられる・入れた項目は形をチェック', function () {
+  var g = E.load(), tk = setup(g);
+  var r = g.call({ action: 'add', token: tk, data: { name: '電話 花子', kana: 'でんわ はなこ', tel: '090-1111-2222', gender: '女性', birth: '1999-09-09', wishes: ['15:00〜16:00'], slot: '15:00〜16:00', status: '参加確定', memo: '電話で受付' } });
+  assert.ok(r.ok); var a = g.call({ action: 'list', token: tk }).applicants[0];
+  assert.strictEqual(a.slot, '15:00〜16:00'); assert.strictEqual(a.status, '参加確定'); assert.strictEqual(a.memo, '電話で受付'); assert.strictEqual(a.birth, '1999-09-09');
+  function err(over) { return g.call({ action: 'add', token: tk, data: Object.assign({ name: 'x', kana: 'えっくす', tel: '090-0000-0000' }, over) }); }
+  assert.ok(err({ email: 'bad@' }).errors.email); assert.ok(err({ birth: '1999-02-31' }).errors.birth); assert.ok(err({ gender: '?' }).errors.gender);
+  assert.ok(err({ slot: '9:00〜10:00' }).error);
+  assert.ok(/ログイン/.test(g.call({ action: 'add', data: { name: 'x', kana: 'えっくす', tel: '090-0000-0000' } }).error), 'ログインなしは不可');
+});
+t('電話受付の追加: 「受付メールを送る」なら本人にだけ送る（アドレスが無いと不可）', function () {
+  var g = E.load(), tk = setup(g);
+  assert.ok(g.call({ action: 'add', token: tk, sendMail: true, data: { name: 'x', kana: 'えっくす', tel: '090-0000-0000' } }).error);
+  assert.strictEqual(g.call({ action: 'list', token: tk }).applicants.length, 0, 'エラーなら入らない');
+  assert.ok(g.call({ action: 'add', token: tk, sendMail: true, data: { name: '電話 次郎', kana: 'でんわ じろう', tel: '090-0000-0000', email: 'jiro@example.jp' } }).ok);
+  assert.strictEqual(g.env.sent.length, 1); assert.strictEqual(g.env.sent[0].to, 'jiro@example.jp');
+  assert.ok(g.env.sent[0].body.indexOf('性別：') < 0 && g.env.sent[0].body.indexOf('希望の時間帯：') < 0, '空の項目は本文に出さない');
+});
+t('編集: 名前・電話などを直せる（割当・状況・メモは変わらない）・フォームの応募の経路はフォーム', function () {
+  var g = E.load(), tk = setup(g);
+  g.call({ action: 'apply', data: good() });
+  var a = g.call({ action: 'list', token: tk }).applicants[0];
+  assert.strictEqual(a.source, 'フォーム');
+  g.call({ action: 'update', token: tk, id: a.id, fields: { status: '参加確定', memo: 'メモ' } });
+  var r = g.call({ action: 'edit', token: tk, id: a.id, data: { name: '山田 華子', kana: 'やまだ はなこ', tel: '090-9999-8888', gender: '女性', birth: '1990-04-05', email: 'hanako@example.jp', wishes: ['10:00〜11:00'] } });
+  assert.ok(r.ok, JSON.stringify(r));
+  a = g.call({ action: 'list', token: tk }).applicants[0];
+  assert.strictEqual(a.name, '山田 華子'); assert.strictEqual(a.tel, '090-9999-8888'); assert.strictEqual(a.wish2, ''); assert.strictEqual(a.status, '参加確定'); assert.strictEqual(a.memo, 'メモ'); assert.strictEqual(a.source, 'フォーム');
+  assert.ok(g.call({ action: 'edit', token: tk, id: a.id, data: { name: '', kana: 'x', tel: '1' } }).errors);
+  assert.ok(g.call({ action: 'edit', token: tk, id: 'nope', data: { name: 'a', kana: 'あ', tel: '090-0000-0000' } }).error);
+});
+t('前からあるシート（経路の列なし）にも見出しを足す', function () {
+  var g = E.load(), tk = setup(g);
+  g.call({ action: 'apply', data: good() });
+  var sh = g.book.getSheetByName('応募者'); sh.data[0].length = 16; sh.data[1].length = 16;
+  g.HEAD_OK = false;
+  var l = g.call({ action: 'list', token: tk }).applicants;
+  assert.strictEqual(sh.data[0][16], 'source'); assert.strictEqual(l[0].source, 'フォーム');
+});
+
 console.log((ng ? n + ' 件 OK・' + ng + ' 件 NG' : n + ' 件 OK'));
 process.exit(ng ? 1 : 0);

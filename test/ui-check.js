@@ -132,6 +132,32 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
     ok(/応募者一覧（4名）/.test(info[0].a1) && /山田 花子/.test(info[0].c4) && info[0].k5 === '11/6 14時 電話OK', JSON.stringify(info[0]));
     ok(info[1].rows === 3 + 7, '時間割は7枠');
   });
+  await t('電話受付: 追加（必須3つ・割当と状況も）→ 一覧に「電話」・時間割に入る・メールは送らない', async function () {
+    var before = (await (await fetch(BASE + '__mails')).json()).length;
+    await a.click('nav.tabs button[data-tab=list]'); await a.click('#addBtn'); await a.waitForSelector('#modal:not(.hide)');
+    await a.click('#mSave'); await a.waitForTimeout(400);
+    ok(/入力/.test(await a.textContent('[data-e=name]')) && /入力/.test(await a.textContent('[data-e=tel]')), '必須エラー');
+    await a.fill('#mName', '電話 太郎'); await a.fill('#mKana', 'でんわ たろう'); await a.fill('#mTel', '0586-11-2222');
+    await a.locator('#mWishes input').nth(5).check(); await a.selectOption('#mSlot', '15:00〜16:00'); await a.fill('#mMemo', '11/5 電話で受付（平山）');
+    ok(await a.inputValue('#mStatus') === '連絡済み', '状況の既定');
+    await a.screenshot({ path: path.join(SHOTS, 'admin-add-phone.png') });
+    await a.click('#mSave'); await a.waitForSelector('.toast:has-text("追加しました")'); await a.waitForTimeout(300);
+    ok(await a.locator('#modal.hide').count() === 1, '閉じる');
+    var tr = a.locator('#rows tr').last(); ok(/電話 太郎/.test(await tr.textContent()) && /電話/.test(await tr.locator('.src').textContent()), '一覧に電話');
+    ok(await tr.locator('.eSlot').inputValue() === '15:00〜16:00');
+    ok(/うち電話 1/.test(await a.textContent('#kpis')));
+    await a.selectOption('#fSrc', '電話'); ok((await a.locator('#rows tr').count()) === 1, '受付で絞り込み'); await a.selectOption('#fSrc', '');
+    await a.click('nav.tabs button[data-tab=tt]'); ok(/電話 太郎/.test(await a.locator('#tt .slot').nth(5).locator('.chip.as').textContent()), '時間割に入る');
+    ok((await (await fetch(BASE + '__mails')).json()).length === before, 'メールは送らない');
+    await a.click('nav.tabs button[data-tab=list]');
+  });
+  await t('編集: 名前と電話を直せる（割当・状況・メモはそのまま）', async function () {
+    var tr = a.locator('#rows tr').last(); await tr.locator('.eEdit').click(); await a.waitForSelector('#modal:not(.hide)');
+    ok(await a.inputValue('#mName') === '電話 太郎' && await a.locator('#mSlot').isHidden(), '編集では割当欄は出ない');
+    await a.fill('#mName', '電話 太朗'); await a.fill('#mTel', '0586-11-3333'); await a.click('#mSave'); await a.waitForSelector('.toast:has-text("保存しました")'); await a.waitForTimeout(300);
+    tr = a.locator('#rows tr').last(); ok(/電話 太朗/.test(await tr.textContent()) && /0586-11-3333/.test(await tr.textContent()));
+    ok(await tr.locator('.eSlot').inputValue() === '15:00〜16:00' && await tr.locator('.eMemo').inputValue() === '11/5 電話で受付（平山）');
+  });
   await t('受付終了にするとフォームは「受付は終了しました」', async function () {
     await a.click('nav.tabs button[data-tab=set]'); await a.uncheck('#sOpen'); await a.click('#saveSet'); await a.waitForSelector('.toast:has-text("保存")');
     await p.goto(BASE); await p.waitForSelector('#closed:not(.hide)');

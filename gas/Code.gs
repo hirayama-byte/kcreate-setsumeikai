@@ -1,8 +1,9 @@
 // お仕事説明会 応募フォーム＋管理（2026-11-05）
 // 画面は GitHub Pages（docs/）。ここは受け口（API）だけ。平山さんの権限で動き、誰でも呼べる（executeAs=USER_DEPLOYING・access=ANYONE_ANONYMOUS）
 // 応募（apply）と画面に出す設定（config）は誰でも。ほかはパスワードでログインしたトークンが必要
-var VERSION = 'v1';
-var HEAD = ['id', 'created', 'name', 'kana', 'gender', 'birth', 'tel', 'email', 'wish1', 'wish2', 'wish3', 'slot', 'status', 'memo', 'updated', 'mail'];
+var VERSION = 'v2';
+var HEAD = ['id', 'created', 'name', 'kana', 'gender', 'birth', 'tel', 'email', 'wish1', 'wish2', 'wish3', 'slot', 'status', 'memo', 'updated', 'mail', 'source'];
+var SOURCES = ['フォーム', '電話']; // 受付の経路（source が空＝フォーム）
 var STATUSES = ['未連絡', '連絡済み', '不在・折り返し待ち', '参加確定', '辞退', 'その他'];
 var GENDERS = ['男性', '女性'];
 var TOKEN_SEC = 6 * 3600; // ログインの有効時間（CacheService の上限）
@@ -42,6 +43,8 @@ function route_(req) {
   if (a === 'list') return adminData_();
   if (a === 'update') return update_(req.id, req.fields || {});
   if (a === 'remove') return remove_(req.id);
+  if (a === 'add') return add_(req.data || {}, !!req.sendMail);
+  if (a === 'edit') return edit_(req.id, req.data || {});
   if (a === 'saveSettings') return saveSettings_(req.settings || {});
   if (a === 'changePassword') return changePassword_(req.current, req.next);
   if (a === 'logout') { CacheService.getScriptCache().remove('tok_' + req.token); return { ok: true }; }
@@ -52,7 +55,7 @@ function route_(req) {
 function book_() { return SpreadsheetApp.getActive(); } // このスクリプトがついているスプレッドシート（権限は currentonly だけ）
 function sheet_(name) {
   var ss = book_(), sh = ss.getSheetByName(name);
-  if (sh) return sh;
+  if (sh) { if (name === '応募者') headFix_(sh); return sh; }
   sh = ss.insertSheet(name);
   if (name === '応募者') {
     sh.getRange(1, 1, 1000, HEAD.length).setNumberFormat('@'); // 電話の先頭0・日付の文字をそのまま残す
@@ -62,6 +65,13 @@ function sheet_(name) {
     sh.getRange(1, 1, 1, 2).setValues([['key', 'value']]).setFontWeight('bold');
   }
   return sh;
+}
+// 後から足した列（source）の見出しを、前からあるシートにも入れる（1回の呼び出しで1度だけ見る）
+var HEAD_OK = false;
+function headFix_(sh) {
+  if (HEAD_OK) return; HEAD_OK = true;
+  var h = sh.getRange(1, 1, 1, HEAD.length).getValues()[0];
+  HEAD.forEach(function (k, j) { if (!h[j]) { sh.getRange(1, j + 1, 1000, 1).setNumberFormat('@'); sh.getRange(1, j + 1).setValue(k).setFontWeight('bold'); } });
 }
 function settings_() {
   var cache = CacheService.getScriptCache(), c = cache.get('settings');
@@ -103,14 +113,15 @@ function clean_(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u0
 function toHalf_(v) { return String(v).replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).replace(/[－ー−‐―]/g, '-'); }
 
 // 入力の確認（画面と同じルール）。正しければ整えた値、だめならエラー
-function validate_(d, s) {
+// staff=true は管理画面からの入力（電話受付など）: 必須はお名前・ふりがな・電話番号だけ
+function validate_(d, s, staff) {
   var errs = {}, out = {};
   out.name = clean_(d.name, 50); if (!out.name) errs.name = 'お名前を入力してください';
   out.kana = clean_(d.kana, 50); if (!out.kana) errs.kana = 'ふりがなを入力してください'; else if (!KANA_RE.test(out.kana)) errs.kana = 'ふりがなは ひらがな で入力してください';
-  out.gender = clean_(d.gender, 5); if (GENDERS.indexOf(out.gender) < 0) errs.gender = '性別を選んでください';
+  out.gender = clean_(d.gender, 5); if (GENDERS.indexOf(out.gender) < 0 && !(staff && !out.gender)) errs.gender = '性別を選んでください';
   out.birth = clean_(d.birth, 10);
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(out.birth), today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
-  if (!m) errs.birth = '生年月日を選んでください';
+  if (!m) { if (!(staff && !out.birth)) errs.birth = out.birth ? '生年月日が正しくありません' : '生年月日を選んでください'; }
   else {
     var dt = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
     if (dt.getUTCMonth() !== +m[2] - 1 || dt.getUTCDate() !== +m[3] || +m[1] < 1900 || out.birth > today) errs.birth = '生年月日が正しくありません';
@@ -119,10 +130,10 @@ function validate_(d, s) {
   var digits = out.tel.replace(/-/g, '');
   if (!out.tel) errs.tel = '電話番号を入力してください'; else if (!/^[0-9-]+$/.test(out.tel) || !/^0\d{9,10}$/.test(digits)) errs.tel = '電話番号が正しくありません（例: 090-1234-5678）';
   out.email = toHalf_(clean_(d.email, 100)).replace(/＠/g, '@').toLowerCase();
-  if (!out.email) errs.email = 'メールアドレスを入力してください'; else if (!EMAIL_RE.test(out.email)) errs.email = 'メールアドレスが正しくありません';
+  if (!out.email) { if (!staff) errs.email = 'メールアドレスを入力してください'; } else if (!EMAIL_RE.test(out.email)) errs.email = 'メールアドレスが正しくありません';
   var slots = slots_(s), w = Array.isArray(d.wishes) ? d.wishes.map(String) : [], seen = {};
   w = w.filter(function (x) { if (seen[x]) return false; seen[x] = true; return true; });
-  if (!w.length) errs.wishes = '希望の時間帯を1つ以上選んでください';
+  if (!w.length) { if (!staff) errs.wishes = '希望の時間帯を1つ以上選んでください'; }
   else if (w.length > 3) errs.wishes = '希望の時間帯は3つまでです';
   else if (w.some(function (x) { return slots.indexOf(x) < 0; })) errs.wishes = '時間帯の選び方が正しくありません。ページを読み込み直してください';
   out.wishes = w.sort(function (a, b) { return slots.indexOf(a) - slots.indexOf(b); });
@@ -143,25 +154,25 @@ function apply_(d) {
     id = Utilities.getUuid().slice(0, 8); created = now_();
     sh.appendRow([id, created, x.name, x.kana, x.gender, x.birth, x.tel, x.email, x.wishes[0] || '', x.wishes[1] || '', x.wishes[2] || '', '', STATUSES[0], '', created, ''].map(safe_));
   } finally { lock.releaseLock(); }
-  var mail = sendMails_(s, x, created);
+  var mail = sendMails_(s, x, created, true);
   if (mail) setCell_(id, 'mail', mail);
   return { ok: true };
 }
 
 // 本人と受付担当にメール。送れなかったときは記録して、応募自体は受け付ける
-function sendMails_(s, x, created) {
+function sendMails_(s, x, created, toStaff) {
   var vars = {
     '氏名': x.name, 'ふりがな': x.kana, '説明会名': s.title, '開催日': s.date, '会場': s.place, '署名': s.signature,
     '希望時間帯': x.wishes.join('、'),
-    '応募内容': ['お名前：' + x.name + '（' + x.kana + '）', '性別：' + x.gender, '生年月日：' + birthText_(x.birth), '電話番号：' + x.tel, 'メールアドレス：' + x.email,
-      '希望の時間帯：' + x.wishes.join('、')].concat(s.date ? ['開催日：' + s.date] : []).concat(s.place ? ['会場：' + s.place] : []).join('\n')
+    '応募内容': ['お名前：' + x.name + '（' + x.kana + '）', x.gender ? '性別：' + x.gender : '', x.birth ? '生年月日：' + birthText_(x.birth) : '', '電話番号：' + x.tel, x.email ? 'メールアドレス：' + x.email : '',
+      x.wishes.length ? '希望の時間帯：' + x.wishes.join('、') : ''].filter(String).concat(s.date ? ['開催日：' + s.date] : []).concat(s.place ? ['会場：' + s.place] : []).join('\n')
   };
   var problems = [], staff = staffList_(s), opt = { name: s.sender_name || DEFAULTS.sender_name };
   var reply = EMAIL_RE.test(s.reply_to) ? s.reply_to : staff[0];
   try {
     MailApp.sendEmail({ to: x.email, subject: fill_(s.mail_subject, vars), body: fill_(s.mail_body, vars).replace(/\n{3,}/g, '\n\n').trim() + '\n', name: opt.name, replyTo: reply || undefined });
   } catch (e) { console.error(e); problems.push('本人へのメール失敗: ' + String(e.message || e)); }
-  if (staff.length) {
+  if (toStaff && staff.length) {
     try {
       MailApp.sendEmail({ to: staff.join(','), subject: fill_(s.staff_subject, vars), name: opt.name, replyTo: x.email,
         body: '新しい応募がありました（' + created + '）。\n\n' + vars['応募内容'] + '\n\n管理画面で一覧・時間割を確認できます。\n' });
@@ -208,7 +219,8 @@ function changePassword_(cur, next) {
 function adminData_() {
   var s = settings_();
   var list = rows_().map(function (o) { delete o.row; return o; });
-  return { applicants: list, settings: s, slots: slots_(s), capacity: capacity_(s), statuses: STATUSES, staffValid: staffList_(s), version: VERSION };
+  list.forEach(function (o) { if (!o.source) o.source = 'フォーム'; });
+  return { sources: SOURCES, applicants: list, settings: s, slots: slots_(s), capacity: capacity_(s), statuses: STATUSES, staffValid: staffList_(s), version: VERSION };
 }
 function findRow_(id) {
   var sh = sheet_('応募者'), n = sh.getLastRow();
@@ -231,6 +243,41 @@ function update_(id, f) {
     if (f.hasOwnProperty('slot')) { var sl = String(f.slot || ''); if (sl && slots_(s).indexOf(sl) < 0) return { error: '時間帯が正しくありません' }; cur[HEAD.indexOf('slot')] = sl; }
     if (f.hasOwnProperty('status')) { if (STATUSES.indexOf(String(f.status)) < 0) return { error: '状況が正しくありません' }; cur[HEAD.indexOf('status')] = String(f.status); }
     if (f.hasOwnProperty('memo')) cur[HEAD.indexOf('memo')] = safe_(String(f.memo || '').slice(0, 2000));
+    cur[HEAD.indexOf('updated')] = now_();
+    sh.getRange(r, 1, 1, HEAD.length).setValues([cur]);
+    var o = {}; HEAD.forEach(function (h, j) { o[h] = unsafe_(cur[j]); });
+    return { ok: true, applicant: o };
+  } finally { lock.releaseLock(); }
+}
+// 管理画面から追加（電話受付など）。メールは「受付メールを送る」にしたときだけ本人へ（受付担当へは送らない）
+function add_(d, sendMail) {
+  var s = settings_(), v = validate_(d, s, true);
+  if (!v.ok) return { error: '入力内容を確認してください', errors: v.errors };
+  var x = v.value, src = SOURCES.indexOf(String(d.source)) >= 0 ? String(d.source) : '電話';
+  var slot = String(d.slot || ''), st = STATUSES.indexOf(String(d.status)) >= 0 ? String(d.status) : '連絡済み';
+  if (slot && slots_(s).indexOf(slot) < 0) return { error: '時間帯が正しくありません' };
+  if (sendMail && !x.email) return { error: '受付メールを送るには、メールアドレスを入れてください' };
+  var lock = LockService.getScriptLock(), id, created;
+  lock.waitLock(20000);
+  try {
+    id = Utilities.getUuid().slice(0, 8); created = now_();
+    sheet_('応募者').appendRow([id, created, x.name, x.kana, x.gender, x.birth, x.tel, x.email, x.wishes[0] || '', x.wishes[1] || '', x.wishes[2] || '', slot, st, String(d.memo || '').slice(0, 2000), created, '', src].map(safe_));
+  } finally { lock.releaseLock(); }
+  if (sendMail) { var mail = sendMails_(s, x, created, false); if (mail) setCell_(id, 'mail', mail); }
+  return { ok: true, id: id };
+}
+// 基本の項目（名前・ふりがな・性別・生年月日・電話・メール・希望）を直す。割当・状況・メモは update_
+function edit_(id, d) {
+  var s = settings_(), v = validate_(d, s, true);
+  if (!v.ok) return { error: '入力内容を確認してください', errors: v.errors };
+  var x = v.value, lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var r = findRow_(id);
+    if (!r) return { error: 'この応募は見つかりません（削除された可能性があります）' };
+    var sh = sheet_('応募者'), cur = sh.getRange(r, 1, 1, HEAD.length).getValues()[0];
+    ['name', 'kana', 'gender', 'birth', 'tel', 'email'].forEach(function (k) { cur[HEAD.indexOf(k)] = safe_(x[k]); });
+    [0, 1, 2].forEach(function (i) { cur[HEAD.indexOf('wish' + (i + 1))] = x.wishes[i] || ''; });
     cur[HEAD.indexOf('updated')] = now_();
     sh.getRange(r, 1, 1, HEAD.length).setValues([cur]);
     var o = {}; HEAD.forEach(function (h, j) { o[h] = unsafe_(cur[j]); });

@@ -95,6 +95,21 @@
     .slot .col + .col { border-left: 0; border-top: 1px dashed var(--line); }
     .tbl { max-height: none; }
   }
+  .src { display: inline-block; font-size: 11px; border-radius: 4px; padding: 0 5px; margin-top: 2px; background: #eef2f1; color: #44524f; }
+  .src.tel { background: #fff0d6; color: #8a5300; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(15,30,28,.45); z-index: 40; display: grid; place-items: start center; overflow: auto; padding: 24px 16px; }
+  .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 640px; padding: 18px 18px 16px; }
+  .modal h3 { margin: 0 0 12px; font-size: 17px; }
+  .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .mgrid .full { grid-column: 1 / -1; }
+  .mgrid label.t { display: block; font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+  .mgrid input[type=text], .mgrid input[type=email], .mgrid input[type=date], .mgrid select, .mgrid textarea { width: 100%; }
+  .mgrid .req { color: var(--danger); font-size: 11px; margin-left: 4px; }
+  .mgrid .e { color: var(--danger); font-size: 12px; }
+  .wbox { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wbox label { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font-size: 13px; cursor: pointer; }
+  .mfoot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  @media (max-width: 600px) { .mgrid { grid-template-columns: 1fr; } }
   @media print { header.top, .bar, nav { display: none !important; } }
 </style>
 </head>
@@ -126,10 +141,12 @@
         <input type="text" id="q" placeholder="名前・ふりがな・電話・メールで探す" style="flex:1 1 220px">
         <select id="fStatus"><option value="">状況: すべて</option></select>
         <select id="fSlot"><option value="">割当: すべて</option><option value="-">未割当</option></select>
+        <select id="fSrc"><option value="">受付: すべて</option><option>フォーム</option><option>電話</option></select>
         <span class="sp"></span>
+        <button class="btn" id="addBtn">＋ 電話受付を追加</button>
         <button class="btn primary" id="xlsxBtn">Excel（A4）で出力</button>
       </div>
-      <div class="tbl"><table><thead><tr><th>No</th><th>応募日時</th><th>お名前</th><th>性別</th><th>生年月日（年齢）</th><th>電話番号</th><th>メール</th><th>希望</th><th>割当</th><th>状況</th><th>メモ</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="tbl"><table><thead><tr><th>No</th><th>応募日時・受付</th><th>お名前</th><th>性別</th><th>生年月日（年齢）</th><th>電話番号</th><th>メール</th><th>希望</th><th>割当</th><th>状況</th><th>メモ</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
       <p class="none" id="emptyMsg" style="padding:10px 2px"></p>
     </section>
 
@@ -179,6 +196,26 @@
       </div>
     </section>
   </main>
+</div>
+
+<div id="modal" class="modal-bg hide" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <form class="modal" id="mForm" novalidate>
+    <h3 id="mTitle">電話受付を追加</h3>
+    <div class="mgrid">
+      <div><label class="t" for="mName">お名前<span class="req">必須</span></label><input type="text" id="mName" maxlength="50"><div class="e" data-e="name"></div></div>
+      <div><label class="t" for="mKana">ふりがな<span class="req">必須</span></label><input type="text" id="mKana" maxlength="50"><div class="e" data-e="kana"></div></div>
+      <div><label class="t" for="mTel">電話番号<span class="req">必須</span></label><input type="text" id="mTel" inputmode="tel" maxlength="20" placeholder="090-1234-5678"><div class="e" data-e="tel"></div></div>
+      <div><label class="t" for="mGender">性別</label><select id="mGender"><option value="">（未確認）</option><option>男性</option><option>女性</option></select><div class="e" data-e="gender"></div></div>
+      <div><label class="t" for="mBirth">生年月日</label><input type="date" id="mBirth" min="1900-01-01"><div class="e" data-e="birth"></div></div>
+      <div><label class="t" for="mEmail">メールアドレス</label><input type="email" id="mEmail" maxlength="100"><div class="e" data-e="email"></div></div>
+      <div class="full"><label class="t">希望の時間帯（3つまで）</label><div class="wbox" id="mWishes"></div><div class="e" data-e="wishes"></div></div>
+      <div class="addOnly"><label class="t" for="mSlot">割当</label><select id="mSlot"></select></div>
+      <div class="addOnly"><label class="t" for="mStatus">状況</label><select id="mStatus"></select></div>
+      <div class="full addOnly"><label class="t" for="mMemo">メモ</label><textarea id="mMemo" rows="3" placeholder="受けた日時・担当・話した内容など"></textarea></div>
+      <div class="full addOnly"><label><input type="checkbox" id="mMail"> 本人に受付メールを送る（メールアドレスを入れたときだけ）</label></div>
+    </div>
+    <div class="mfoot"><span class="none" id="mNote" style="margin-right:auto">必須はお名前・ふりがな・電話番号だけです。</span><button type="button" class="btn" id="mCancel">やめる</button><button class="btn primary" id="mSave">追加する</button></div>
+  </form>
 </div>
 
 <script src="../config.js"></script>
@@ -233,7 +270,8 @@ function renderAll() {
   if (mailNg) w.push('メールを送れなかった応募が ' + mailNg + ' 件あります（一覧のメール欄に「送信失敗」と出ます）。');
   $('warnBox').innerHTML = w.map(function (x) { return '<div class="warn">' + esc(x) + '</div>'; }).join('');
   var A = d.applicants, assigned = A.filter(function (a) { return a.slot && a.status !== '辞退'; }).length;
-  var kp = [['応募', A.length], ['未連絡', A.filter(function (a) { return a.status === '未連絡'; }).length], ['割当済み', assigned], ['参加確定', A.filter(function (a) { return a.status === '参加確定'; }).length], ['辞退', A.filter(function (a) { return a.status === '辞退'; }).length]];
+  var telN = A.filter(function (a) { return a.source === '電話'; }).length;
+  var kp = [['応募（うち電話 ' + telN + '）', A.length], ['未連絡', A.filter(function (a) { return a.status === '未連絡'; }).length], ['割当済み', assigned], ['参加確定', A.filter(function (a) { return a.status === '参加確定'; }).length], ['辞退', A.filter(function (a) { return a.status === '辞退'; }).length]];
   $('kpis').innerHTML = kp.map(function (k) { return '<div class="kpi"><b>' + k[1] + '</b><span>' + k[0] + '</span></div>'; }).join('');
   var fs = $('fStatus'), cur = fs.value; fs.innerHTML = '<option value="">状況: すべて</option>' + d.statuses.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join(''); fs.value = cur;
   var fl = $('fSlot'), c2 = fl.value; fl.innerHTML = '<option value="">割当: すべて</option><option value="-">未割当</option>' + d.slots.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join(''); fl.value = c2;
@@ -241,15 +279,16 @@ function renderAll() {
 }
 
 function filtered() {
-  var q = $('q').value.trim().toLowerCase(), st = $('fStatus').value, sl = $('fSlot').value;
+  var q = $('q').value.trim().toLowerCase(), st = $('fStatus').value, sl = $('fSlot').value, src = $('fSrc').value;
   return S.d.applicants.map(function (a, i) { a.no = i + 1; return a; }).filter(function (a) {
     if (st && a.status !== st) return false;
+    if (src && a.source !== src) return false;
     if (sl === '-' && a.slot) return false; if (sl && sl !== '-' && a.slot !== sl) return false;
     if (q && [a.name, a.kana, a.tel, a.tel.replace(/-/g, ''), a.email].join(' ').toLowerCase().indexOf(q) < 0) return false;
     return true;
   });
 }
-['q', 'fStatus', 'fSlot'].forEach(function (id) { $(id).addEventListener('input', renderList); });
+['q', 'fStatus', 'fSlot', 'fSrc'].forEach(function (id) { $(id).addEventListener('input', renderList); });
 
 function renderList() {
   var d = S.d, rows = filtered();
@@ -257,16 +296,16 @@ function renderList() {
     var slotOpts = '<option value="">（未割当）</option>' + d.slots.map(function (x) { return '<option' + (a.slot === x ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('');
     if (a.slot && d.slots.indexOf(a.slot) < 0) slotOpts += '<option selected>' + esc(a.slot) + '</option>';
     var stOpts = d.statuses.map(function (x) { return '<option' + (a.status === x ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('');
-    return '<tr data-id="' + esc(a.id) + '"><td>' + a.no + '</td><td style="white-space:nowrap">' + esc(a.created.slice(5)) + '</td>' +
-      '<td style="white-space:nowrap"><b>' + esc(a.name) + '</b><div class="sub">' + esc(a.kana) + '</div></td><td>' + esc(a.gender) + '</td>' +
-      '<td style="white-space:nowrap">' + esc(bText(a.birth)) + '<div class="sub">' + age(a.birth) + '歳</div></td>' +
+    return '<tr data-id="' + esc(a.id) + '"><td>' + a.no + '</td><td style="white-space:nowrap">' + esc(a.created.slice(5)) + '<br><span class="src' + (a.source === '電話' ? ' tel' : '') + '">' + esc(a.source) + '</span></td>' +
+      '<td style="white-space:nowrap"><b>' + esc(a.name) + '</b><div class="sub">' + esc(a.kana) + '</div></td><td style="white-space:nowrap">' + esc(a.gender) + '</td>' +
+      '<td style="white-space:nowrap">' + (a.birth ? esc(bText(a.birth)) + '<div class="sub">' + age(a.birth) + '歳</div>' : '<span class="none">−</span>') + '</td>' +
       '<td style="white-space:nowrap"><a href="tel:' + esc(a.tel.replace(/-/g, '')) + '">' + esc(a.tel) + '</a></td>' +
-      '<td><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' + (a.mail ? '<div class="sub" style="color:var(--danger)">送信失敗: ' + esc(a.mail) + '</div>' : '') + '</td>' +
+      '<td>' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '<span class="none">−</span>') + (a.mail ? '<div class="sub" style="color:var(--danger)">送信失敗: ' + esc(a.mail) + '</div>' : '') + '</td>' +
       '<td>' + wishes(a).map(function (w, i) { return '<span class="wish"><i>第' + (i + 1) + '</i>' + esc(w) + '</span>'; }).join('') + '</td>' +
       '<td><select class="eSlot" aria-label="割当">' + slotOpts + '</select></td>' +
       '<td><select class="eSt" aria-label="状況">' + stOpts + '</select></td>' +
       '<td class="memo"><textarea class="eMemo" aria-label="メモ" placeholder="電話した日時・内容など">' + esc(a.memo) + '</textarea><div class="saved"></div></td>' +
-      '<td><button class="btn sm danger eDel" title="この応募を削除">削除</button></td></tr>';
+      '<td style="white-space:nowrap"><button class="btn sm eEdit" title="名前・電話などを直す">編集</button> <button class="btn sm danger eDel" title="この応募を削除">削除</button></td></tr>';
   }).join('');
   $('emptyMsg').textContent = !d.applicants.length ? 'まだ応募はありません。' : (!rows.length ? '条件に合う応募はありません。' : '');
   document.querySelectorAll('#rows tr').forEach(function (tr) {
@@ -277,6 +316,7 @@ function renderList() {
     m.onfocus = function () { this.style.height = Math.max(80, this.scrollHeight) + 'px'; };
     m.onblur = function () { this.style.height = ''; if (this.value !== orig) { orig = this.value; save(id, { memo: this.value }, tr, true); } };
     tr.querySelector('.eDel').onclick = function () { del(id); };
+    tr.querySelector('.eEdit').onclick = function () { openModal(byId(id)); };
   });
 }
 function byId(id) { return S.d.applicants.filter(function (a) { return a.id === id; })[0]; }
@@ -342,6 +382,48 @@ $('pwBtn').onclick = function () {
   api({ action: 'changePassword', current: $('pwCur').value, next: $('pwNew').value }).then(function () { $('pwCur').value = $('pwNew').value = ''; toast('パスワードを変更しました'); }).catch(function (e) { toast(e.message, true); });
 };
 
+// ---------- 電話受付の追加・編集 ----------
+var M = { id: null };
+function openModal(a) {
+  var d = S.d; M.id = a ? a.id : null;
+  $('mTitle').textContent = a ? '「' + a.name + '」さんの情報を直す' : '電話受付を追加';
+  $('mSave').textContent = a ? '保存する' : '追加する';
+  document.querySelectorAll('#mForm .addOnly').forEach(function (el) { el.classList.toggle('hide', !!a); });
+  $('mNote').textContent = a ? '割当・状況・メモは一覧の欄で変えられます。' : '必須はお名前・ふりがな・電話番号だけです。';
+  $('mName').value = a ? a.name : ''; $('mKana').value = a ? a.kana : ''; $('mTel').value = a ? a.tel : ''; $('mGender').value = a ? a.gender : '';
+  $('mBirth').value = a ? a.birth : ''; $('mBirth').max = new Date().toISOString().slice(0, 10); $('mEmail').value = a ? a.email : '';
+  var ws = a ? wishes(a) : [];
+  $('mWishes').innerHTML = d.slots.map(function (sl) { return '<label><input type="checkbox" value="' + esc(sl) + '"' + (ws.indexOf(sl) >= 0 ? ' checked' : '') + '>' + esc(sl) + '</label>'; }).join('');
+  $('mWishes').querySelectorAll('input').forEach(function (b) { b.onchange = mLimit; }); mLimit();
+  $('mSlot').innerHTML = '<option value="">（未割当）</option>' + d.slots.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+  $('mStatus').innerHTML = d.statuses.map(function (x) { return '<option' + (x === '連絡済み' ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('');
+  $('mMemo').value = ''; $('mMail').checked = false;
+  document.querySelectorAll('#mForm [data-e]').forEach(function (e) { e.textContent = ''; });
+  $('modal').classList.remove('hide'); $('mName').focus();
+}
+[['mName', 'name'], ['mKana', 'kana'], ['mTel', 'tel'], ['mGender', 'gender'], ['mBirth', 'birth'], ['mEmail', 'email']].forEach(function (p) {
+  $(p[0]).addEventListener('input', function () { var e = document.querySelector('#mForm [data-e="' + p[1] + '"]'); if (e) e.textContent = ''; });
+});
+function mLimit() { var on = $('mWishes').querySelectorAll('input:checked').length; $('mWishes').querySelectorAll('input').forEach(function (b) { b.disabled = !b.checked && on >= 3; }); }
+function closeModal() { $('modal').classList.add('hide'); }
+$('addBtn').onclick = function () { openModal(null); };
+$('mCancel').onclick = closeModal;
+$('modal').addEventListener('mousedown', function (e) { if (e.target === $('modal')) closeModal(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modal').classList.contains('hide')) closeModal(); });
+$('mForm').onsubmit = function (e) {
+  e.preventDefault();
+  var data = { name: $('mName').value, kana: $('mKana').value, tel: $('mTel').value, gender: $('mGender').value, birth: $('mBirth').value, email: $('mEmail').value,
+    wishes: Array.prototype.map.call($('mWishes').querySelectorAll('input:checked'), function (b) { return b.value; }) };
+  var req = M.id ? { action: 'edit', id: M.id, data: data } : { action: 'add', data: Object.assign(data, { slot: $('mSlot').value, status: $('mStatus').value, memo: $('mMemo').value, source: '電話' }), sendMail: $('mMail').checked };
+  document.querySelectorAll('#mForm [data-e]').forEach(function (x) { x.textContent = ''; });
+  $('mSave').disabled = true; req.token = S.token;
+  fetch(window.API_URL, { method: 'POST', body: JSON.stringify(req) }).then(function (r) { return r.json(); }).then(function (r) {
+    if (r.errors) { Object.keys(r.errors).forEach(function (k) { var el = document.querySelector('#mForm [data-e="' + k + '"]'); if (el) el.textContent = r.errors[k]; }); return; }
+    if (r.error) { if (/ログイン/.test(r.error)) { closeModal(); logout(true); return; } toast(r.error, true); return; }
+    closeModal(); toast(M.id ? '保存しました' : '追加しました'); return load();
+  }).catch(function (e) { toast('保存できませんでした: ' + e.message, true); }).then(function () { $('mSave').disabled = false; });
+};
+
 // ---------- Excel（A4・印刷用） ----------
 $('xlsxBtn').onclick = function () {
   if (!window.ExcelJS) { toast('Excel の部品を読み込めませんでした。ページを読み込み直してください', true); return; }
@@ -359,10 +441,10 @@ $('xlsxBtn').onclick = function () {
   }
   // 1枚目: 応募者一覧（いま画面に出ている順・絞り込み）
   var ws = wb.addWorksheet('応募者一覧');
-  var cols = [['No', 5], ['応募日時', 11], ['お名前\n（ふりがな）', 18], ['性別', 6], ['生年月日\n（年齢）', 12], ['電話番号', 14], ['メールアドレス', 24], ['希望の時間帯', 15], ['割当', 13], ['状況', 11], ['メモ', 34]];
+  var cols = [['No', 5], ['応募日時\n受付', 11], ['お名前\n（ふりがな）', 18], ['性別', 6], ['生年月日\n（年齢）', 12], ['電話番号', 14], ['メールアドレス', 24], ['希望の時間帯', 15], ['割当', 13], ['状況', 11], ['メモ', 34]];
   setup(ws, cols, s.title + '　応募者一覧（' + rows.length + '名）');
   rows.forEach(function (a) {
-    var r = ws.addRow([a.no, a.created.replace(/^\d{4}-/, '').replace('-', '/'), a.name + '\n（' + a.kana + '）', a.gender, bText(a.birth) + '\n（' + age(a.birth) + '歳）', a.tel, a.email,
+    var r = ws.addRow([a.no, a.created.replace(/^\d{4}-/, '').replace('-', '/') + '\n' + a.source, a.name + '\n（' + a.kana + '）', a.gender, a.birth ? bText(a.birth) + '\n（' + age(a.birth) + '歳）' : '', a.tel, a.email,
       wishes(a).map(function (w, i) { return '第' + (i + 1) + ' ' + w; }).join('\n'), a.slot || '', a.status, a.memo]);
     r.eachCell({ includeEmpty: true }, function (c, i) { c.border = border; c.font = { size: 10 }; c.alignment = { vertical: 'top', wrapText: true, horizontal: [1, 4].indexOf(i) >= 0 ? 'center' : 'left' }; });
     var lines = Math.max(2, wishes(a).length, Math.ceil(String(a.memo || '').length / 30) + (String(a.memo || '').match(/\n/g) || []).length);
