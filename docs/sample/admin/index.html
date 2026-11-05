@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>【サンプル】説明会 応募管理</title>
+<style>
+  :root { --bg: #f3f6f6; --card: #fff; --ink: #1f2a2a; --muted: #64716f; --line: #dde5e3; --accent: #0f8a7e; --accent-ink: #fff; --accent-weak: #e3f4f1; --danger: #c62828; --warn: #b26a00; --warn-weak: #fff4e0; --side: #12302c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .hide { display: none !important; }
+  /* ログイン */
+  .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+  .login .card { width: 100%; max-width: 360px; }
+  /* 骨組み */
+  header.top { position: sticky; top: 0; z-index: 5; background: var(--side); color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header.top .ttl { font-weight: 700; font-size: 15px; line-height: 1.3; min-width: 0; }
+  header.top .ttl small { display: block; font-weight: 400; opacity: .75; font-size: 12px; }
+  header.top .sp { flex: 1; }
+  nav.tabs { display: flex; gap: 4px; background: rgba(255,255,255,.08); padding: 3px; border-radius: 10px; }
+  nav.tabs button { background: none; border: 0; color: #cfe; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  nav.tabs button.on { background: #fff; color: var(--side); }
+  main { padding: 16px; } /* PC の画面いっぱいに広げる（広い画面なら一覧は横スクロールなし） */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; font-weight: 600; white-space: nowrap; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.sm { height: 28px; padding: 0 10px; font-size: 12px; }
+  .btn.danger { color: var(--danger); }
+  .btn.dark { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  input[type=text], input[type=password], input[type=email], input[type=number], select, textarea { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: #fff; min-height: 36px; max-width: 100%; }
+  textarea { width: 100%; resize: vertical; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .kpi b { display: block; font-size: 24px; line-height: 1.2; }
+  .kpi span { color: var(--muted); font-size: 12px; }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .bar .sp { flex: 1; }
+  .tbl { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; max-height: calc(100vh - 250px); }
+  table { border-collapse: collapse; width: 100%; min-width: 1180px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { position: sticky; top: 0; background: #f7faf9; font-size: 12px; color: var(--muted); z-index: 1; white-space: nowrap; }
+  td .sub { color: var(--muted); font-size: 12px; }
+  td.memo textarea { min-width: 220px; min-height: 36px; height: 36px; font-size: 13px; }
+  td select { font-size: 13px; }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 600; background: #eef2f1; color: #44524f; white-space: nowrap; }
+  .st-未連絡 { background: var(--warn-weak); color: var(--warn); }
+  .st-連絡済み { background: #e6f0fb; color: #1f5fa8; }
+  .st-参加確定 { background: var(--accent-weak); color: #0a5f57; }
+  .st-辞退 { background: #f2f2f2; color: #888; }
+  .st-不在・折り返し待ち { background: #fdecef; color: #b0304a; }
+  .wish { display: block; white-space: nowrap; font-size: 13px; }
+  .wish i { font-style: normal; color: var(--muted); font-size: 11px; margin-right: 4px; }
+  .saved { color: var(--accent); font-size: 11px; }
+  .warn { background: var(--warn-weak); color: var(--warn); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
+  /* 時間割 */
+  .tt { display: grid; gap: 10px; }
+  .slot { display: grid; grid-template-columns: 150px 1fr 1fr; gap: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .slot > div { padding: 12px 14px; }
+  .slot .time { background: #f7faf9; border-right: 1px solid var(--line); }
+  .slot .time b { font-size: 16px; display: block; }
+  .slot .meter { height: 6px; background: #e7eeec; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .slot .meter i { display: block; height: 100%; background: var(--accent); }
+  .slot .meter.over i { background: var(--danger); }
+  .slot .col + .col { border-left: 1px dashed var(--line); }
+  .slot h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 10px; background: #fff; font-size: 13px; }
+  .chip.as { border-color: #9fd7cf; background: var(--accent-weak); }
+  .chip .x, .chip .add { border: 0; background: #fff; border-radius: 999px; width: 22px; height: 22px; cursor: pointer; font-weight: 700; line-height: 1; color: var(--muted); }
+  .chip .add { background: var(--accent); color: #fff; }
+  .chip small { color: var(--muted); }
+  .chip .ctel { color: var(--muted); font-size: 12px; text-decoration: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip .ctel:hover { color: var(--accent); text-decoration: underline; }
+  .none { color: #a3b0ad; font-size: 12px; }
+  /* 設定 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .f { margin-bottom: 14px; }
+  .f label { display: block; font-weight: 600; margin-bottom: 4px; }
+  .f .hint { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .f input[type=text], .f input[type=email] { width: 100%; }
+  .caps { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .caps label { font-weight: 400; font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+  .caps input { width: 100%; }
+  .qr { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .qr #qr { padding: 8px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  .url { font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; background: #f7faf9; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #1f2a2a; color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 50; max-width: calc(100% - 32px); }
+  .toast.err { background: var(--danger); }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  @media (max-width: 860px) {
+    .grid2 { grid-template-columns: 1fr; }
+    .slot { grid-template-columns: 1fr; }
+    .slot .time { border-right: 0; border-bottom: 1px solid var(--line); }
+    .slot .col + .col { border-left: 0; border-top: 1px dashed var(--line); }
+    .tbl { max-height: none; }
+  }
+  .src { display: inline-block; font-size: 11px; border-radius: 4px; padding: 0 5px; margin-top: 2px; background: #eef2f1; color: #44524f; }
+  .src.tel { background: #fff0d6; color: #8a5300; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(15,30,28,.45); z-index: 40; display: grid; place-items: start center; overflow: auto; padding: 24px 16px; }
+  .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 640px; padding: 18px 18px 16px; }
+  .modal h3 { margin: 0 0 12px; font-size: 17px; }
+  .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .mgrid .full { grid-column: 1 / -1; }
+  .mgrid label.t { display: block; font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+  .mgrid input[type=text], .mgrid input[type=email], .mgrid input[type=date], .mgrid select, .mgrid textarea { width: 100%; }
+  .mgrid .req { color: var(--danger); font-size: 11px; margin-left: 4px; }
+  .mgrid .e { color: var(--danger); font-size: 12px; }
+  .wbox { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wbox label { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font-size: 13px; cursor: pointer; }
+  .mfoot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  @media (max-width: 600px) { .mgrid { grid-template-columns: 1fr; } }
+  @media print { header.top, .bar, nav { display: none !important; } }
+</style>
+</head>
+<body>
+<div style="background:#fff4e0;color:#8a5300;border-bottom:1px solid #f3d29a;padding:8px 16px;font:600 13px/1.6 -apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI',Meiryo,sans-serif;display:flex;gap:10px;align-items:center;flex-wrap:wrap" id="sampleBar"><span>サンプル画面です（架空のデータ）。本番とはつながっていないので自由に試せます。送信してもメールは届きません。変えた内容はこのブラウザの中だけに残ります。</span><button type="button" onclick="if(confirm('サンプルを最初の状態に戻しますか？'))sampleReset()" style="font:inherit;border:1px solid #e0b060;background:#fff;color:#8a5300;border-radius:8px;padding:2px 10px;cursor:pointer">最初の状態に戻す</button><a href="../" target="_blank" rel="noopener" style="color:#8a5300">応募フォームのサンプルを開く →</a></div>
+<div id="loginView" class="login">
+  <form class="card" id="loginForm">
+    <h2 style="margin-bottom:4px">説明会 応募管理</h2>
+    <p style="margin:0 0 14px;color:var(--muted);font-size:13px">パスワードを入れてください。</p>
+    <input type="password" id="pw" autocomplete="current-password" placeholder="パスワード" style="width:100%;margin-bottom:10px">
+    <button class="btn primary" style="width:100%;height:42px" id="loginBtn">ログイン</button>
+    <p id="loginErr" style="color:var(--danger);font-size:13px;margin:10px 0 0"></p>
+  </form>
+</div>
+
+<div id="app" class="hide">
+  <header class="top">
+    <div class="ttl" id="hTitle">説明会<small id="hSub"></small></div>
+    <nav class="tabs"><button data-tab="list" class="on">応募者一覧</button><button data-tab="tt">時間割</button><button data-tab="set">設定</button></nav>
+    <span class="sp"></span>
+    <a class="btn dark sm" id="guideBtn" href="../../guide/" target="_blank" rel="noopener" title="使い方ガイドを新しいタブで開く"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg>使い方ガイド</a>
+    <button class="btn dark sm" id="reloadBtn" title="最新を読み込む">更新</button>
+    <button class="btn dark sm" id="logoutBtn">ログアウト</button>
+  </header>
+  <main>
+    <div id="warnBox"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <section id="tab-list">
+      <div class="bar">
+        <input type="text" id="q" placeholder="名前・ふりがな・電話・メールで探す" style="flex:1 1 220px">
+        <select id="fStatus"><option value="">状況: すべて</option></select>
+        <select id="fSlot"><option value="">割当: すべて</option><option value="-">未割当</option></select>
+        <select id="fSrc"><option value="">受付: すべて</option><option>フォーム</option><option>電話</option></select>
+        <span class="sp"></span>
+        <button class="btn" id="addBtn">＋ 電話受付を追加</button>
+        <button class="btn primary" id="xlsxBtn">Excel（A4）で出力</button>
+      </div>
+      <div class="tbl"><table><thead><tr><th>No</th><th>応募日時・受付</th><th>お名前</th><th>性別</th><th>生年月日（年齢）</th><th>電話番号</th><th>メール</th><th>希望</th><th>割当</th><th>状況</th><th>メモ</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+      <p class="none" id="emptyMsg" style="padding:10px 2px"></p>
+    </section>
+
+    <section id="tab-tt" class="hide">
+      <div class="bar"><span class="sp"></span><button class="btn primary" id="ttPdfBtn">PDF（A4横）で出力</button></div>
+      <p style="margin:0 0 10px;color:var(--muted)">右の「候補」は、まだ割り当てていない人の希望です（第1〜第3は時間の早い順）。＋で、その時間帯に割り当てます。電話で決まったら割り当て、状況を「参加確定」にしてください。</p>
+      <div class="tt" id="tt"></div>
+    </section>
+
+    <section id="tab-set" class="hide">
+      <div class="grid2">
+        <div class="card">
+          <h2>説明会</h2>
+          <div class="f"><label for="sTitle">説明会の名前</label><input type="text" id="sTitle"></div>
+          <div class="f"><label for="sDate">開催日</label><input type="text" id="sDate" placeholder="例）2026年11月20日（金）"></div>
+          <div class="f"><label for="sPlace">会場</label><input type="text" id="sPlace" placeholder="例）一宮市○○ 3階 会議室"></div>
+          <div class="f"><label for="sIntro">フォームの説明文</label><textarea id="sIntro" rows="3"></textarea></div>
+          <div class="f"><label><input type="checkbox" id="sOpen"> 応募を受け付ける</label><div class="hint">外すと、フォームに「受付は終了しました」と出ます。</div></div>
+          <div class="f"><label for="sSlots">時間帯（1行に1つ）</label><textarea id="sSlots" rows="7"></textarea><div class="hint">応募が入ったあとに名前を変えると、その時間帯の希望・割当とつながらなくなります。</div></div>
+          <div class="f"><label>時間帯ごとの定員（空欄＝決めない）</label><div class="caps" id="sCaps"></div></div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <h2>メール</h2>
+            <div class="f"><label for="sStaff">受付担当のアドレス（応募があると届く・1行に1つ）</label><textarea id="sStaff" rows="3" placeholder="uketsuke@k-create.co.jp&#10;tanto@client.co.jp"></textarea></div>
+            <div class="f"><label for="sReply">本人へのメールの返信先</label><input type="email" id="sReply" placeholder="空欄なら受付担当の1つ目"></div>
+            <div class="f"><label for="sSender">差出人の名前</label><input type="text" id="sSender"></div>
+            <div class="f"><label for="sSubj">本人へのメールの件名</label><input type="text" id="sSubj"></div>
+            <div class="f"><label for="sBody">本人へのメールの本文</label><textarea id="sBody" rows="12"></textarea>
+              <div class="hint">差し込み: {氏名} {ふりがな} {説明会名} {開催日} {会場} {希望時間帯} {応募内容}（入力内容の一覧） {署名}</div></div>
+            <div class="f"><label for="sSig">署名（{署名} に入ります）</label><textarea id="sSig" rows="4" placeholder="株式会社ケイクリエイト&#10;TEL 0586-00-0000"></textarea></div>
+            <div class="f"><label for="sStaffSubj">受付担当へのメールの件名</label><input type="text" id="sStaffSubj"></div>
+            <button class="btn primary" id="saveSet">設定を保存</button>
+          </div>
+          <div class="card" style="margin-bottom:16px">
+            <h2>応募フォームのURL・QRコード</h2>
+            <div class="qr"><div id="qr"></div><div style="flex:1;min-width:200px"><div class="url" id="formUrl"></div>
+              <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" id="copyUrl">URLをコピー</button><button class="btn sm" id="dlQr">QRを画像で保存</button><a class="btn sm" id="openForm" target="_blank" rel="noopener">フォームを開く</a></div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="modal-bg hide" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <form class="modal" id="mForm" novalidate>
+    <h3 id="mTitle">電話受付を追加</h3>
+    <div class="mgrid">
+      <div><label class="t" for="mName">お名前<span class="req">必須</span></label><input type="text" id="mName" maxlength="50"><div class="e" data-e="name"></div></div>
+      <div><label class="t" for="mKana">ふりがな<span class="req">必須</span></label><input type="text" id="mKana" maxlength="50"><div class="e" data-e="kana"></div></div>
+      <div><label class="t" for="mTel">電話番号<span class="req">必須</span></label><input type="text" id="mTel" inputmode="tel" maxlength="20" placeholder="090-1234-5678"><div class="e" data-e="tel"></div></div>
+      <div><label class="t" for="mGender">性別</label><select id="mGender"><option value="">（未確認）</option><option>男性</option><option>女性</option></select><div class="e" data-e="gender"></div></div>
+      <div><label class="t" for="mBirth">生年月日</label><input type="date" id="mBirth" min="1900-01-01"><div class="e" data-e="birth"></div></div>
+      <div><label class="t" for="mEmail">メールアドレス</label><input type="email" id="mEmail" maxlength="100"><div class="e" data-e="email"></div></div>
+      <div class="full"><label class="t">希望の時間帯（3つまで）</label><div class="wbox" id="mWishes"></div><div class="e" data-e="wishes"></div></div>
+      <div class="addOnly"><label class="t" for="mSlot">割当</label><select id="mSlot"></select></div>
+      <div class="addOnly"><label class="t" for="mStatus">状況</label><select id="mStatus"></select></div>
+      <div class="full addOnly"><label class="t" for="mMemo">メモ</label><textarea id="mMemo" rows="3" placeholder="受けた日時・担当・話した内容など"></textarea></div>
+      <div class="full addOnly"><label><input type="checkbox" id="mMail"> 本人に受付メールを送る（メールアドレスを入れたときだけ）</label></div>
+    </div>
+    <div class="mfoot"><span class="none" id="mNote" style="margin-right:auto">必須はお名前・ふりがな・電話番号だけです。</span><button type="button" class="btn" id="mCancel">やめる</button><button class="btn primary" id="mSave">追加する</button></div>
+  </form>
+</div>
+
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var S = { token: null, d: null, tab: 'list' };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function toast(m, err) { var t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.remove(); }, err ? 5000 : 2200); }
+function api(req) {
+  if (S.token) req.token = S.token;
+  return fetch(window.API_URL, { method: 'POST', body: JSON.stringify(req) }).then(function (r) { return r.json(); }).then(function (r) {
+    if (r && r.error && /ログイン/.test(r.error) && req.action !== 'login') { logout(true); }
+    if (r && r.error) throw new Error(r.error);
+    return r;
+  });
+}
+try { S.token = sessionStorage.getItem('tok'); } catch (e) {}
+// サンプル画面（test/serve.js --sample）だけ: パスワードなしで開く。本番の config.js には SAMPLE_TOKEN は無い
+if (window.SAMPLE_TOKEN) { S.token = window.SAMPLE_TOKEN; S.sample = true; document.getElementById('logoutBtn').classList.add('hide'); }
+function logout(expired) { try { sessionStorage.removeItem('tok'); } catch (e) {} if (S.token && !expired) api({ action: 'logout' }).catch(function () {}); S.token = null; $('app').classList.add('hide'); $('loginView').classList.remove('hide'); if (expired) $('loginErr').textContent = 'ログインの期限が切れました。もう一度ログインしてください'; }
+$('loginForm').onsubmit = function (e) {
+  e.preventDefault(); $('loginErr').textContent = ''; $('loginBtn').disabled = true;
+  api({ action: 'login', password: $('pw').value }).then(function (r) { S.token = r.token; try { sessionStorage.setItem('tok', r.token); } catch (e) {} $('pw').value = ''; load(); })
+    .catch(function (e) { $('loginErr').textContent = e.message; }).then(function () { $('loginBtn').disabled = false; });
+};
+$('logoutBtn').onclick = function () { logout(false); };
+$('reloadBtn').onclick = function () { load(); };
+
+function load() {
+  return api({ action: 'list' }).then(function (d) {
+    S.d = d; $('loginView').classList.add('hide'); $('app').classList.remove('hide');
+    renderAll();
+  }).catch(function (e) { if (S.token) toast(e.message, true); });
+}
+if (S.token) load();
+
+document.querySelectorAll('nav.tabs button').forEach(function (b) { b.onclick = function () { setTab(b.dataset.tab); }; });
+function setTab(t) { S.tab = t; document.querySelectorAll('nav.tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); }); ['list', 'tt', 'set'].forEach(function (x) { $('tab-' + x).classList.toggle('hide', x !== t); }); $('kpis').classList.toggle('hide', t === 'set'); if (t === 'set') renderSettings(); }
+
+function age(b) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b || ''); if (!m) return ''; var n = new Date(), a = n.getFullYear() - +m[1]; if (n.getMonth() + 1 < +m[2] || (n.getMonth() + 1 === +m[2] && n.getDate() < +m[3])) a--; return a; }
+function bText(b) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b || ''); return m ? m[1] + '/' + (+m[2]) + '/' + (+m[3]) : b; }
+function wishes(a) { return [a.wish1, a.wish2, a.wish3].filter(String); }
+
+function renderAll() {
+  var d = S.d, s = d.settings;
+  $('hTitle').innerHTML = esc(s.title) + '<small>' + esc([s.date, s.place].filter(String).join('・') || '開催日・会場は「設定」で入れられます') + '</small>';
+  document.title = s.title + ' 応募管理';
+  var w = [];
+  if (S.sample && !window.SAMPLE_MODE) w.push('これはサンプル画面です（架空のデータ・パスワードなし）。本番とはつながっていないので、自由に試せます。メールは送られません。');
+  if (!d.staffValid.length) w.push('受付担当のアドレスが未設定です（応募があっても担当者にメールが届きません）。「設定」→「メール」で入れてください。');
+  if (s.open !== '1') w.push('いまは応募を受け付けていません（フォームに「受付は終了しました」と出ます）。');
+  var mailNg = d.applicants.filter(function (a) { return a.mail; }).length;
+  if (mailNg) w.push('メールを送れなかった応募が ' + mailNg + ' 件あります（一覧のメール欄に「送信失敗」と出ます）。');
+  $('warnBox').innerHTML = w.map(function (x) { return '<div class="warn">' + esc(x) + '</div>'; }).join('');
+  var A = d.applicants, assigned = A.filter(function (a) { return a.slot && a.status !== '辞退'; }).length;
+  var telN = A.filter(function (a) { return a.source === '電話'; }).length;
+  var kp = [['応募（うち電話 ' + telN + '）', A.length], ['未連絡', A.filter(function (a) { return a.status === '未連絡'; }).length], ['割当済み', assigned], ['参加確定', A.filter(function (a) { return a.status === '参加確定'; }).length], ['辞退', A.filter(function (a) { return a.status === '辞退'; }).length]];
+  $('kpis').innerHTML = kp.map(function (k) { return '<div class="kpi"><b>' + k[1] + '</b><span>' + k[0] + '</span></div>'; }).join('');
+  var fs = $('fStatus'), cur = fs.value; fs.innerHTML = '<option value="">状況: すべて</option>' + d.statuses.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join(''); fs.value = cur;
+  var fl = $('fSlot'), c2 = fl.value; fl.innerHTML = '<option value="">割当: すべて</option><option value="-">未割当</option>' + d.slots.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join(''); fl.value = c2;
+  renderList(); renderTT();
+}
+
+function filtered() {
+  var q = $('q').value.trim().toLowerCase(), st = $('fStatus').value, sl = $('fSlot').value, src = $('fSrc').value;
+  return S.d.applicants.map(function (a, i) { a.no = i + 1; return a; }).filter(function (a) {
+    if (st && a.status !== st) return false;
+    if (src && a.source !== src) return false;
+    if (sl === '-' && a.slot) return false; if (sl && sl !== '-' && a.slot !== sl) return false;
+    if (q && [a.name, a.kana, a.tel, a.tel.replace(/-/g, ''), a.email].join(' ').toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+}
+['q', 'fStatus', 'fSlot', 'fSrc'].forEach(function (id) { $(id).addEventListener('input', renderList); });
+
+function renderList() {
+  var d = S.d, rows = filtered();
+  $('rows').innerHTML = rows.map(function (a) {
+    var slotOpts = '<option value="">（未割当）</option>' + d.slots.map(function (x) { return '<option' + (a.slot === x ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('');
+    if (a.slot && d.slots.indexOf(a.slot) < 0) slotOpts += '<option selected>' + esc(a.slot) + '</option>';
+    var stOpts = d.statuses.map(function (x) { return '<option' + (a.status === x ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('');
+    return '<tr data-id="' + esc(a.id) + '"><td>' + a.no + '</td><td style="white-space:nowrap">' + esc(a.created.slice(5)) + '<br><span class="src' + (a.source === '電話' ? ' tel' : '') + '">' + esc(a.source) + '</span></td>' +
+      '<td style="white-space:nowrap"><b>' + esc(a.name) + '</b><div class="sub">' + esc(a.kana) + '</div></td><td style="white-space:nowrap">' + esc(a.gender) + '</td>' +
+      '<td style="white-space:nowrap">' + (a.birth ? esc(bText(a.birth)) + '<div class="sub">' + age(a.birth) + '歳</div>' : '<span class="none">−</span>') + '</td>' +
+      '<td style="white-space:nowrap"><a href="tel:' + esc(a.tel.replace(/-/g, '')) + '">' + esc(a.tel) + '</a></td>' +
+      '<td>' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '<span class="none">−</span>') + (a.mail ? '<div class="sub" style="color:var(--danger)">送信失敗: ' + esc(a.mail) + '</div>' : '') + '</td>' +
+      '<td>' + wishes(a).map(function (w, i) { return '<span class="wish"><i>第' + (i + 1) + '</i>' + esc(w) + '</span>'; }).join('') + '</td>' +
+      '<td><select class="eSlot" aria-label="割当">' + slotOpts + '</select></td>' +
+      '<td><select class="eSt" aria-label="状況">' + stOpts + '</select></td>' +
+      '<td class="memo"><textarea class="eMemo" aria-label="メモ" placeholder="電話した日時・内容など">' + esc(a.memo) + '</textarea><div class="saved"></div></td>' +
+      '<td style="white-space:nowrap"><button class="btn sm eEdit" title="名前・電話などを直す">編集</button> <button class="btn sm danger eDel" title="この応募を削除">削除</button></td></tr>';
+  }).join('');
+  $('emptyMsg').textContent = !d.applicants.length ? 'まだ応募はありません。' : (!rows.length ? '条件に合う応募はありません。' : '');
+  document.querySelectorAll('#rows tr').forEach(function (tr) {
+    var id = tr.dataset.id;
+    tr.querySelector('.eSlot').onchange = function () { save(id, { slot: this.value }, tr); };
+    tr.querySelector('.eSt').onchange = function () { save(id, { status: this.value }, tr); };
+    var m = tr.querySelector('.eMemo'), orig = m.value;
+    m.onfocus = function () { this.style.height = Math.max(80, this.scrollHeight) + 'px'; };
+    m.onblur = function () { this.style.height = ''; if (this.value !== orig) { orig = this.value; save(id, { memo: this.value }, tr, true); } };
+    tr.querySelector('.eDel').onclick = function () { del(id); };
+    tr.querySelector('.eEdit').onclick = function () { openModal(byId(id)); };
+  });
+}
+function byId(id) { return S.d.applicants.filter(function (a) { return a.id === id; })[0]; }
+function save(id, f, tr, quiet) {
+  var mark = tr && tr.querySelector('.saved'); if (mark) mark.textContent = '保存中…';
+  return api({ action: 'update', id: id, fields: f }).then(function (r) {
+    var a = byId(id); Object.keys(f).forEach(function (k) { a[k] = r.applicant[k]; });
+    if (mark) mark.textContent = '保存しました';
+    if (!quiet) renderAll(); else { renderTT(); }
+  }).catch(function (e) { toast(e.message, true); if (mark) mark.textContent = ''; load(); });
+}
+function del(id) {
+  var a = byId(id);
+  if (!confirm('「' + a.name + '」さんの応募を削除します。元に戻せません。よろしいですか？')) return;
+  api({ action: 'remove', id: id }).then(function () { S.d.applicants = S.d.applicants.filter(function (x) { return x.id !== id; }); renderAll(); toast('削除しました'); }).catch(function (e) { toast(e.message, true); });
+}
+
+// 時間割: 割り当てた人（辞退は除く）と、まだ割り当てていない人の希望
+function telLink(a) { return a.tel ? '<a class="ctel" href="tel:' + esc(a.tel.replace(/-/g, '')) + '">' + esc(a.tel) + '</a>' : ''; }
+function renderTT() {
+  var d = S.d;
+  $('tt').innerHTML = d.slots.map(function (sl) {
+    var asg = d.applicants.filter(function (a) { return a.slot === sl && a.status !== '辞退'; });
+    var cand = [];
+    d.applicants.forEach(function (a) { if (a.slot || a.status === '辞退') return; var i = wishes(a).indexOf(sl); if (i >= 0) cand.push({ a: a, n: i + 1 }); });
+    cand.sort(function (x, y) { return x.n - y.n; });
+    var cap = d.capacity[sl] || 0, pct = cap ? Math.min(100, Math.round(asg.length / cap * 100)) : (asg.length ? 100 : 0);
+    return '<div class="slot"><div class="time"><b>' + esc(sl) + '</b><span>' + asg.length + ' 人' + (cap ? ' ／ 定員 ' + cap : '') + '</span>' +
+      '<div class="meter' + (cap && asg.length > cap ? ' over' : '') + '"><i style="width:' + (cap ? pct : 0) + '%"></i></div>' + (cap && asg.length > cap ? '<span style="color:var(--danger);font-size:12px">定員オーバー</span>' : '') + '</div>' +
+      '<div class="col"><h4>割り当て済み</h4><div class="chips">' + (asg.length ? asg.map(function (a) { return '<span class="chip as">' + esc(a.name) + ' ' + telLink(a) + ' <span class="tag st-' + esc(a.status) + '">' + esc(a.status) + '</span><button class="x" data-un="' + esc(a.id) + '" title="割り当てを外す" aria-label="' + esc(a.name) + 'の割り当てを外す">×</button></span>'; }).join('') : '<span class="none">まだいません</span>') + '</div></div>' +
+      '<div class="col"><h4>候補（未割当で、この時間を希望）</h4><div class="chips">' + (cand.length ? cand.map(function (c) { return '<span class="chip">' + esc(c.a.name) + ' ' + telLink(c.a) + ' <small>第' + c.n + '・' + esc(c.a.status) + '</small><button class="add" data-as="' + esc(c.a.id) + '" data-sl="' + esc(sl) + '" title="この時間に割り当てる" aria-label="' + esc(c.a.name) + 'を' + esc(sl) + 'に割り当てる">＋</button></span>'; }).join('') : '<span class="none">なし</span>') + '</div></div></div>';
+  }).join('');
+  document.querySelectorAll('#tt [data-un]').forEach(function (b) { b.onclick = function () { save(b.dataset.un, { slot: '' }); }; });
+  document.querySelectorAll('#tt [data-as]').forEach(function (b) { b.onclick = function () { save(b.dataset.as, { slot: b.dataset.sl }); }; });
+}
+
+// ---------- 時間割の PDF（A4横・当日の印刷用） ----------
+// 印刷用のページ（A4横 = 1123×794px）を画面の外に組み立て、入りきらない行は次のページへ。各ページを画像にして PDF にする
+function ttRows() {
+  var d = S.d;
+  return d.slots.map(function (sl) {
+    var asg = d.applicants.filter(function (a) { return a.slot === sl && a.status !== '辞退'; });
+    var cand = [];
+    d.applicants.forEach(function (a) { if (a.slot || a.status === '辞退') return; var i = wishes(a).indexOf(sl); if (i >= 0) cand.push({ a: a, n: i + 1 }); });
+    cand.sort(function (x, y) { return x.n - y.n; });
+    return { sl: sl, cap: d.capacity[sl] || 0, asg: asg, cand: cand };
+  });
+}
+function ttPages() {
+  var s = S.d.settings, rows = ttRows(), now = new Date();
+  var stamp = now.getFullYear() + '/' + (now.getMonth() + 1) + '/' + now.getDate() + ' ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+  var total = rows.reduce(function (n, x) { return n + x.asg.length; }, 0);
+  var host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-20000px;top:0;';
+  host.innerHTML = '<style>' +
+    '.pp{width:1123px;height:794px;padding:34px 40px 30px;background:#fff;color:#111;font:13px/1.5 "Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;box-sizing:border-box;position:relative;overflow:hidden;margin-bottom:10px}' +
+    '.pp h1{font-size:20px;margin:0 0 2px}.pp .meta{color:#444;font-size:12.5px;margin-bottom:10px;display:flex;gap:18px;flex-wrap:wrap}' +
+    '.pp table{border-collapse:collapse;width:1043px;min-width:0;table-layout:fixed}.pp th,.pp td{border:1px solid #888;padding:5px 8px;vertical-align:top;text-align:left}' +
+    '.pp th{background:#e3f4f1;font-size:12px}.pp td.t{font-weight:700;font-size:14.5px;white-space:nowrap}.pp td.n{white-space:nowrap}' +
+    '.pp .p{display:flex;gap:10px;align-items:baseline;line-height:1.55}.pp .p b{min-width:7em}.pp .p .tel{font-variant-numeric:tabular-nums;min-width:8.5em}.pp .p .st{color:#555;font-size:12px}' +
+    '.pp .c{display:block;line-height:1.55}.pp .c i{font-style:normal;color:#555;font-size:11.5px;margin-right:4px}.pp .none{color:#999}' +
+    '.pp .over{color:#c62828;font-size:11.5px;display:block}.pp .foot{position:absolute;left:40px;right:40px;bottom:14px;display:flex;justify-content:space-between;color:#777;font-size:11px}' +
+    '</style>';
+  document.body.appendChild(host);
+  var head = '<h1>' + esc(s.title) + '　時間割</h1><div class="meta">' + (s.date ? '<span>開催日：' + esc(s.date) + '</span>' : '') + (s.place ? '<span>会場：' + esc(s.place) + '</span>' : '') + '<span>割り当て済み 合計 ' + total + ' 人</span><span>出力：' + stamp + '</span></div>';
+  var thead = '<colgroup><col style="width:124px"><col style="width:86px"><col style="width:463px"><col style="width:370px"></colgroup><thead><tr><th>時間帯</th><th>人数</th><th>割り当て済み（名前・電話・状況）</th><th>候補（未割当でこの時間を希望・第何希望）</th></tr></thead>';
+  function newPage() { var pg = document.createElement('div'); pg.className = 'pp'; pg.innerHTML = head + '<table>' + thead + '<tbody></tbody></table><div class="foot"><span>' + esc(s.title) + '</span><span class="pn"></span></div>'; host.appendChild(pg); return pg; }
+  var pages = [newPage()];
+  rows.forEach(function (x) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="t">' + esc(x.sl) + '</td><td class="n">' + x.asg.length + ' 人' + (x.cap ? '<br>定員 ' + x.cap : '') + (x.cap && x.asg.length > x.cap ? '<span class="over">定員オーバー</span>' : '') + '</td>' +
+      '<td>' + (x.asg.length ? x.asg.map(function (a) { return '<div class="p"><b>' + esc(a.name) + '</b><span class="tel">' + esc(a.tel) + '</span><span class="st">' + esc(a.status) + '</span></div>'; }).join('') : '<span class="none">−</span>') + '</td>' +
+      '<td>' + (x.cand.length ? x.cand.map(function (c) { return '<span class="c"><i>第' + c.n + '</i>' + esc(c.a.name) + '　' + esc(c.a.tel) + '</span>'; }).join('') : '<span class="none">−</span>') + '</td>';
+    var pg = pages[pages.length - 1], body = pg.querySelector('tbody');
+    body.appendChild(tr);
+    // ページの下（ページ番号の上）からはみ出したら次のページへ（1行だけでも入らないときはそのまま）
+    if (pg.querySelector('table').getBoundingClientRect().bottom - pg.getBoundingClientRect().top > 794 - 34 && body.children.length > 1) {
+      body.removeChild(tr); pg = newPage(); pages.push(pg); pg.querySelector('tbody').appendChild(tr);
+    }
+  });
+  pages.forEach(function (pg, i) { pg.querySelector('.pn').textContent = (i + 1) + ' / ' + pages.length + ' ページ'; });
+  return { host: host, pages: pages };
+}
+$('ttPdfBtn').onclick = function () {
+  if (!window.html2canvas || !window.jspdf) { toast('PDF の部品を読み込めませんでした。ページを読み込み直してください', true); return; }
+  var btn = $('ttPdfBtn'); btn.disabled = true; btn.textContent = 'PDF を作っています…';
+  var built = ttPages(), pdf = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+  var chain = Promise.resolve();
+  built.pages.forEach(function (pg, i) {
+    chain = chain.then(function () { return html2canvas(pg, { scale: 2, backgroundColor: '#ffffff', logging: false }); }).then(function (cv) {
+      if (i) pdf.addPage('a4', 'landscape');
+      pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 297, 210);
+    });
+  });
+  chain.then(function () {
+    var now = new Date(), name = (S.d.settings.title || '説明会') + '_時間割_' + now.getFullYear() + ('0' + (now.getMonth() + 1)).slice(-2) + ('0' + now.getDate()).slice(-2) + '.pdf';
+    pdf.save(name); toast('PDF を出力しました（' + built.pages.length + ' ページ）');
+  }).catch(function (e) { toast('PDF を作れませんでした: ' + e.message, true); })
+    .then(function () { built.host.remove(); btn.disabled = false; btn.textContent = 'PDF（A4横）で出力'; });
+};
+
+// ---------- 設定 ----------
+function formUrl() { return new URL('../', location.href).href; }
+function renderSettings() {
+  var s = S.d.settings;
+  $('sTitle').value = s.title; $('sDate').value = s.date; $('sPlace').value = s.place; $('sIntro').value = s.intro; $('sOpen').checked = s.open === '1';
+  $('sSlots').value = s.slots; $('sStaff').value = s.staff; $('sReply').value = s.reply_to; $('sSender').value = s.sender_name;
+  $('sSubj').value = s.mail_subject; $('sBody').value = s.mail_body; $('sSig').value = s.signature; $('sStaffSubj').value = s.staff_subject;
+  $('sCaps').innerHTML = S.d.slots.map(function (sl) { return '<label>' + esc(sl) + '<input type="number" min="0" data-cap="' + esc(sl) + '" value="' + (S.d.capacity[sl] || '') + '"></label>'; }).join('');
+  var u = formUrl(); $('formUrl').textContent = u; $('openForm').href = u;
+  $('qr').innerHTML = '';
+  if (window.QRCode) new QRCode($('qr'), { text: u, width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
+}
+$('saveSet').onclick = function () {
+  var cap = {}; document.querySelectorAll('[data-cap]').forEach(function (i) { cap[i.dataset.cap] = i.value; });
+  var st = { title: $('sTitle').value, date: $('sDate').value, place: $('sPlace').value, intro: $('sIntro').value, open: $('sOpen').checked, slots: $('sSlots').value,
+    staff: $('sStaff').value, reply_to: $('sReply').value, sender_name: $('sSender').value, mail_subject: $('sSubj').value, mail_body: $('sBody').value, signature: $('sSig').value, staff_subject: $('sStaffSubj').value, capacity: cap };
+  $('saveSet').disabled = true;
+  api({ action: 'saveSettings', settings: st }).then(function () { toast('設定を保存しました'); return load(); }).then(function () { renderSettings(); })
+    .catch(function (e) { toast(e.message, true); }).then(function () { $('saveSet').disabled = false; });
+};
+$('copyUrl').onclick = function () { navigator.clipboard.writeText(formUrl()).then(function () { toast('URLをコピーしました'); }); };
+$('dlQr').onclick = function () {
+  // 印刷用に大きめ（1000px）で作り直して保存
+  var box = document.createElement('div'); new QRCode(box, { text: formUrl(), width: 1000, height: 1000, correctLevel: QRCode.CorrectLevel.M });
+  setTimeout(function () { var c = box.querySelector('canvas'); var a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = '説明会応募フォーム_QR.png'; a.click(); }, 50);
+};
+
+// ---------- 電話受付の追加・編集 ----------
+var M = { id: null };
+function openModal(a) {
+  var d = S.d; M.id = a ? a.id : null;
+  $('mTitle').textContent = a ? '「' + a.name + '」さんの情報を直す' : '電話受付を追加';
+  $('mSave').textContent = a ? '保存する' : '追加する';
+  document.querySelectorAll('#mForm .addOnly').forEach(function (el) { el.classList.toggle('hide', !!a); });
+  $('mNote').textContent = a ? '割当・状況・メモは一覧の欄で変えられます。' : '必須はお名前・ふりがな・電話番号だけです。';
+  $('mName').value = a ? a.name : ''; $('mKana').value = a ? a.kana : ''; $('mTel').value = a ? a.tel : ''; $('mGender').value = a ? a.gender : '';
+  $('mBirth').value = a ? a.birth : ''; $('mBirth').max = new Date().toISOString().slice(0, 10); $('mEmail').value = a ? a.email : '';
+  var ws = a ? wishes(a) : [];
+  $('mWishes').innerHTML = d.slots.map(function (sl) { return '<label><input type="checkbox" value="' + esc(sl) + '"' + (ws.indexOf(sl) >= 0 ? ' checked' : '') + '>' + esc(sl) + '</label>'; }).join('');
+  $('mWishes').querySelectorAll('input').forEach(function (b) { b.onchange = mLimit; }); mLimit();
+  $('mSlot').innerHTML = '<option value="">（未割当）</option>' + d.slots.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+  $('mStatus').innerHTML = d.statuses.map(function (x) { return '<option' + (x === '連絡済み' ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('');
+  $('mMemo').value = ''; $('mMail').checked = false;
+  document.querySelectorAll('#mForm [data-e]').forEach(function (e) { e.textContent = ''; });
+  $('modal').classList.remove('hide'); $('mName').focus();
+}
+[['mName', 'name'], ['mKana', 'kana'], ['mTel', 'tel'], ['mGender', 'gender'], ['mBirth', 'birth'], ['mEmail', 'email']].forEach(function (p) {
+  $(p[0]).addEventListener('input', function () { var e = document.querySelector('#mForm [data-e="' + p[1] + '"]'); if (e) e.textContent = ''; });
+});
+function mLimit() { var on = $('mWishes').querySelectorAll('input:checked').length; $('mWishes').querySelectorAll('input').forEach(function (b) { b.disabled = !b.checked && on >= 3; }); }
+function closeModal() { $('modal').classList.add('hide'); }
+$('addBtn').onclick = function () { openModal(null); };
+$('mCancel').onclick = closeModal;
+$('modal').addEventListener('mousedown', function (e) { if (e.target === $('modal')) closeModal(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modal').classList.contains('hide')) closeModal(); });
+$('mForm').onsubmit = function (e) {
+  e.preventDefault();
+  var data = { name: $('mName').value, kana: $('mKana').value, tel: $('mTel').value, gender: $('mGender').value, birth: $('mBirth').value, email: $('mEmail').value,
+    wishes: Array.prototype.map.call($('mWishes').querySelectorAll('input:checked'), function (b) { return b.value; }) };
+  var req = M.id ? { action: 'edit', id: M.id, data: data } : { action: 'add', data: Object.assign(data, { slot: $('mSlot').value, status: $('mStatus').value, memo: $('mMemo').value, source: '電話' }), sendMail: $('mMail').checked };
+  document.querySelectorAll('#mForm [data-e]').forEach(function (x) { x.textContent = ''; });
+  $('mSave').disabled = true; req.token = S.token;
+  fetch(window.API_URL, { method: 'POST', body: JSON.stringify(req) }).then(function (r) { return r.json(); }).then(function (r) {
+    if (r.errors) { Object.keys(r.errors).forEach(function (k) { var el = document.querySelector('#mForm [data-e="' + k + '"]'); if (el) el.textContent = r.errors[k]; }); return; }
+    if (r.error) { if (/ログイン/.test(r.error)) { closeModal(); logout(true); return; } toast(r.error, true); return; }
+    closeModal(); toast(M.id ? '保存しました' : '追加しました'); return load();
+  }).catch(function (e) { toast('保存できませんでした: ' + e.message, true); }).then(function () { $('mSave').disabled = false; });
+};
+
+// ---------- Excel（A4・印刷用） ----------
+$('xlsxBtn').onclick = function () {
+  if (!window.ExcelJS) { toast('Excel の部品を読み込めませんでした。ページを読み込み直してください', true); return; }
+  var d = S.d, s = d.settings, rows = filtered(), wb = new ExcelJS.Workbook();
+  var now = new Date(), stamp = now.getFullYear() + '/' + (now.getMonth() + 1) + '/' + now.getDate() + ' ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+  var thin = { style: 'thin', color: { argb: 'FF999999' } }, border = { top: thin, left: thin, bottom: thin, right: thin };
+  var head = { font: { bold: true, size: 10 }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F4F1' } }, alignment: { vertical: 'middle', horizontal: 'center', wrapText: true }, border: border };
+  function setup(ws, cols, title) {
+    ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }, printTitlesRow: '3:3' };
+    ws.headerFooter = { oddFooter: '&C&P / &N ページ' };
+    ws.columns = cols.map(function (c) { return { width: c[1] }; });
+    ws.mergeCells(1, 1, 1, cols.length); ws.getCell(1, 1).value = title; ws.getCell(1, 1).font = { bold: true, size: 14 };
+    ws.mergeCells(2, 1, 2, cols.length); ws.getCell(2, 1).value = [s.date ? '開催日：' + s.date : '', s.place ? '会場：' + s.place : '', '出力：' + stamp].filter(String).join('　'); ws.getCell(2, 1).font = { size: 10, color: { argb: 'FF555555' } };
+    var hr = ws.getRow(3); cols.forEach(function (c, i) { var cell = hr.getCell(i + 1); cell.value = c[0]; cell.style = head; }); hr.height = 20;
+  }
+  // 1枚目: 応募者一覧（いま画面に出ている順・絞り込み）
+  var ws = wb.addWorksheet('応募者一覧');
+  var cols = [['No', 5], ['応募日時\n受付', 11], ['お名前\n（ふりがな）', 18], ['性別', 6], ['生年月日\n（年齢）', 12], ['電話番号', 14], ['メールアドレス', 24], ['希望の時間帯', 15], ['割当', 13], ['状況', 11], ['メモ', 34]];
+  setup(ws, cols, s.title + '　応募者一覧（' + rows.length + '名）');
+  rows.forEach(function (a) {
+    var r = ws.addRow([a.no, a.created.replace(/^\d{4}-/, '').replace('-', '/') + '\n' + a.source, a.name + '\n（' + a.kana + '）', a.gender, a.birth ? bText(a.birth) + '\n（' + age(a.birth) + '歳）' : '', a.tel, a.email,
+      wishes(a).map(function (w, i) { return '第' + (i + 1) + ' ' + w; }).join('\n'), a.slot || '', a.status, a.memo]);
+    r.eachCell({ includeEmpty: true }, function (c, i) { c.border = border; c.font = { size: 10 }; c.alignment = { vertical: 'top', wrapText: true, horizontal: [1, 4].indexOf(i) >= 0 ? 'center' : 'left' }; });
+    var lines = Math.max(2, wishes(a).length, Math.ceil(String(a.memo || '').length / 30) + (String(a.memo || '').match(/\n/g) || []).length);
+    r.height = Math.max(30, lines * 14);
+  });
+  // 2枚目: 時間割
+  var tt = wb.addWorksheet('時間割');
+  var cols2 = [['時間帯', 15], ['人数', 9], ['割り当て済み（名前・電話・状況）', 60], ['候補（未割当・希望）', 45]];
+  setup(tt, cols2, s.title + '　時間割');
+  d.slots.forEach(function (sl) {
+    var asg = d.applicants.filter(function (a) { return a.slot === sl && a.status !== '辞退'; });
+    var cand = d.applicants.filter(function (a) { return !a.slot && a.status !== '辞退' && wishes(a).indexOf(sl) >= 0; });
+    var cap = d.capacity[sl];
+    var r = tt.addRow([sl, asg.length + '人' + (cap ? ' / ' + cap : ''), asg.map(function (a) { return a.name + '　' + a.tel + '　' + a.status; }).join('\n'), cand.map(function (a) { return a.name + '（第' + (wishes(a).indexOf(sl) + 1) + '）'; }).join('、')]);
+    r.eachCell({ includeEmpty: true }, function (c, i) { c.border = border; c.font = { size: i === 1 ? 11 : 10, bold: i === 1 }; c.alignment = { vertical: 'top', wrapText: true }; });
+    r.height = Math.max(28, Math.max(asg.length, Math.ceil(cand.length / 3)) * 15);
+  });
+  wb.xlsx.writeBuffer().then(function (buf) {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = (s.title || '説明会') + '_応募者一覧_' + now.getFullYear() + ('0' + (now.getMonth() + 1)).slice(-2) + ('0' + now.getDate()).slice(-2) + '.xlsx';
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast('Excel を出力しました（' + rows.length + '名）');
+  }).catch(function (e) { toast('Excel を作れませんでした: ' + e.message, true); });
+};
+</script>
+</body>
+</html>

@@ -243,6 +243,29 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
     // 本番と同じ config（SAMPLE_TOKEN なし）ではパスワードが要る
     var np = await pc.newPage(); await np.goto(BASE + 'admin/'); await np.waitForSelector('#loginForm'); ok(await np.locator('#app.hide').count() === 1, '本番の形はログインが必要'); await np.close();
   });
+  await t('公開サンプル（/sample/）: パスワードなし・架空データ・フォームから応募すると管理に出る・最初に戻せる・外部に送らない', async function () {
+    var ctx = await b.newContext({ viewport: { width: 1366, height: 820 } }), outside = [];
+    ctx.on('request', function (r) { if (/script\.google|googleusercontent/.test(r.url())) outside.push(r.url()); });
+    var sp = await ctx.newPage(); sp.on('pageerror', function (e) { jsErrors.push('sample: ' + e.message); });
+    await sp.goto(BASE + 'sample/admin/'); await sp.waitForSelector('#rows tr');
+    ok(await sp.locator('#loginView.hide').count() === 1 && (await sp.locator('#rows tr').count()) === 7, '7人・ログインなし');
+    ok(/日建ホームズ/.test(await sp.textContent('#hTitle')) && await sp.locator('#sampleBar').isVisible() && await sp.locator('#logoutBtn').isHidden());
+    ok(/\/guide\/$/.test(await sp.locator('#guideBtn').evaluate(function (a) { return a.href; })) && !/sample\/guide/.test(await sp.locator('#guideBtn').evaluate(function (a) { return a.href; })), 'ガイドへのリンク');
+    await sp.screenshot({ path: path.join(SHOTS, 'sample-admin.png') });
+    var fp = await ctx.newPage(); await fp.goto(BASE + 'sample/'); await fp.waitForSelector('#step-input:not(.hide)');
+    ok(/日建ホームズ/.test(await fp.textContent('#title')) && await fp.locator('#sampleBar').isVisible());
+    await fp.fill('#name', 'サンプル 応募'); await fp.fill('#kana', 'さんぷる おうぼ'); await fp.check('input[name=gender][value=女性]', { force: true });
+    await fp.selectOption('#by', '1995'); await fp.selectOption('#bm', '5'); await fp.selectOption('#bd', '5');
+    await fp.fill('#tel', '090-5555-5555'); await fp.fill('#email', 's@example.jp');
+    for (var k of [0, 2, 4]) await fp.locator('input[name=wish]').nth(k).check({ force: true });
+    await fp.click('button[type=submit]'); await fp.waitForSelector('#step-confirm:not(.hide)'); await fp.click('#sendBtn'); await fp.waitForSelector('#step-done:not(.hide)');
+    await sp.reload(); await sp.waitForSelector('#rows tr'); ok((await sp.locator('#rows tr').count()) === 8, 'フォームの応募が管理に出る');
+    var last = await sp.locator('#rows tr').last().innerText(); ok(/第3/.test(last), '希望3つ: ' + last);
+    sp.once('dialog', function (d) { d.accept(); }); await sp.click('#sampleBar button'); await sp.waitForLoadState(); await sp.waitForSelector('#rows tr');
+    await sp.waitForTimeout(500); ok((await sp.locator('#rows tr').count()) === 7, '最初の状態に戻る');
+    ok(!outside.length, '外部への送信: ' + outside.join(' '));
+    await ctx.close();
+  });
   await t('JSエラーなし', async function () { ok(!jsErrors.length, jsErrors.join(' / ')); });
   await b.close();
   console.log((ng ? n + ' 件 OK・' + ng + ' 件 NG' : n + ' 件 OK'));

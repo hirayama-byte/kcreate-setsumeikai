@@ -265,7 +265,7 @@ function renderAll() {
   $('hTitle').innerHTML = esc(s.title) + '<small>' + esc([s.date, s.place].filter(String).join('・') || '開催日・会場は「設定」で入れられます') + '</small>';
   document.title = s.title + ' 応募管理';
   var w = [];
-  if (S.sample) w.push('これはサンプル画面です（架空のデータ・パスワードなし）。本番とはつながっていないので、自由に試せます。メールは送られません。');
+  if (S.sample && !window.SAMPLE_MODE) w.push('これはサンプル画面です（架空のデータ・パスワードなし）。本番とはつながっていないので、自由に試せます。メールは送られません。');
   if (!d.staffValid.length) w.push('受付担当のアドレスが未設定です（応募があっても担当者にメールが届きません）。「設定」→「メール」で入れてください。');
   if (s.open !== '1') w.push('いまは応募を受け付けていません（フォームに「受付は終了しました」と出ます）。');
   var mailNg = d.applicants.filter(function (a) { return a.mail; }).length;
