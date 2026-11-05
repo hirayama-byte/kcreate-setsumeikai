@@ -180,6 +180,16 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
     await m.click('nav.tabs button[data-tab=tt]'); await m.screenshot({ path: path.join(SHOTS, 'admin-phone-tt.png'), fullPage: true });
     ok(await m.evaluate(function () { return document.documentElement.scrollWidth <= window.innerWidth; }), '時間割 横はみ出し');
   });
+  await t('使い方ガイド: 右上（上のバーの右端）にあり、ガイドを新しいタブで開く', async function () {
+    var g = a.locator('#guideBtn');
+    ok(await g.getAttribute('target') === '_blank', '新しいタブ');
+    var gb = await g.boundingBox(), rb = await a.locator('#reloadBtn').boundingBox(), vw = a.viewportSize().width;
+    ok(gb.y < 60 && gb.x > vw / 2 && gb.x < rb.x, '右上: ' + JSON.stringify(gb));
+    var popup = a.context().waitForEvent('page'); await g.click(); var gp = await popup;
+    await gp.waitForLoadState(); ok(/使い方ガイド/.test(await gp.title()), await gp.title());
+    ok((await gp.locator('.demo[data-demo]').count()) === 10, '動きで見る 10本');
+    await gp.close();
+  });
   await t('JSエラーなし', async function () { ok(!jsErrors.length, jsErrors.join(' / ')); });
   await b.close();
   console.log((ng ? n + ' 件 OK・' + ng + ' 件 NG' : n + ' 件 OK'));
