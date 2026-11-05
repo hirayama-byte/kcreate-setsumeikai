@@ -105,24 +105,24 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
   });
   await t('設定: 受付担当2人・定員・開催日を保存 → 注意が消え、時間割に定員', async function () {
     await a.click('nav.tabs button[data-tab=set]'); await a.waitForSelector('#sTitle');
-    await a.fill('#sTitle', '尾州物流 お仕事説明会'); await a.fill('#sDate', '2026年11月20日（金）'); await a.fill('#sPlace', '一宮市民会館 3階');
+    await a.fill('#sTitle', '日建ホームズ お仕事説明会'); await a.fill('#sDate', '2026年11月20日（金）'); await a.fill('#sPlace', '一宮市民会館 3階');
     await a.fill('#sStaff', 'uketsuke@k-create.co.jp\ntanto@client.co.jp');
     await a.fill('[data-cap="10:00〜11:00"]', '1');
     ok((await a.locator('#qr canvas, #qr img').count()) >= 1, 'QR が出ない');
     await a.screenshot({ path: path.join(SHOTS, 'admin-settings.png'), fullPage: true });
     await a.click('#saveSet'); await a.waitForSelector('.toast:has-text("保存")');
     ok(!/受付担当のアドレスが未設定/.test(await a.textContent('#warnBox')));
-    ok(/尾州物流/.test(await a.textContent('#hTitle')));
+    ok(/日建ホームズ/.test(await a.textContent('#hTitle')));
     await a.click('nav.tabs button[data-tab=tt]'); ok(/定員 1/.test(await a.locator('#tt .slot').nth(0).textContent()));
     await fetch(BASE + 'api', { method: 'POST', body: JSON.stringify({ action: 'apply', data: { name: '高橋 四郎', kana: 'たかはし しろう', gender: '男性', birth: '1995-01-01', tel: '090-2222-3333', email: 'shiro@example.jp', wishes: ['11:00〜12:00'] } }) });
     var mails = await (await fetch(BASE + '__mails')).json(), last = mails[mails.length - 1];
-    ok(last.to === 'uketsuke@k-create.co.jp,tanto@client.co.jp' && /高橋 四郎/.test(last.subject) && /尾州物流/.test(last.subject), JSON.stringify(last).slice(0, 200));
+    ok(last.to === 'uketsuke@k-create.co.jp,tanto@client.co.jp' && /高橋 四郎/.test(last.subject) && /日建ホームズ/.test(last.subject), JSON.stringify(last).slice(0, 200));
   });
   await t('Excel（A4）: 一覧と時間割の2枚・A4横・1ページ幅に収める・見出し行を毎ページ', async function () {
     await a.click('nav.tabs button[data-tab=list]'); await a.click('#reloadBtn'); await a.waitForTimeout(500);
     var dl = a.waitForEvent('download'); await a.click('#xlsxBtn'); var d = await dl;
     var f = path.join(__dirname, 'out.xlsx'); await d.saveAs(f);
-    ok(/尾州物流 お仕事説明会_応募者一覧_\d{8}\.xlsx/.test(d.suggestedFilename()), d.suggestedFilename());
+    ok(/日建ホームズ お仕事説明会_応募者一覧_\d{8}\.xlsx/.test(d.suggestedFilename()), d.suggestedFilename());
     var info = await a.evaluate(async function (b64) {
       var wb = new ExcelJS.Workbook(); await wb.xlsx.load(Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); }).buffer);
       return wb.worksheets.map(function (ws) { return { name: ws.name, ps: ws.pageSetup, rows: ws.rowCount, a1: ws.getCell('A1').value, c4: ws.getCell('C4').value, k5: ws.getCell('K5').value }; });

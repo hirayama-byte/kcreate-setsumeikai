@@ -7,7 +7,7 @@ function good(over) {
   return Object.assign({ name: '山田 花子', kana: 'やまだ はなこ', gender: '女性', birth: '1990-04-05', tel: '090-1234-5678', email: 'hanako@example.jp', wishes: ['14:00〜15:00', '10:00〜11:00'] }, over || {});
 }
 function login(g, pw) { var r = g.call({ action: 'login', password: pw || E.PASSWORD }); assert.ok(r.token, JSON.stringify(r)); return r.token; }
-function setup(g, st) { var tk = login(g); var r = g.call({ action: 'saveSettings', token: tk, settings: Object.assign({ title: '尾州物流 お仕事説明会', date: '2026年11月20日（金）', place: '一宮市民会館', staff: 'a@k-create.co.jp\nb@client.jp' }, st || {}) }); assert.ok(r.ok, JSON.stringify(r)); return tk; }
+function setup(g, st) { var tk = login(g); var r = g.call({ action: 'saveSettings', token: tk, settings: Object.assign({ title: '日建ホームズ お仕事説明会', date: '2026年11月20日（金）', place: '一宮市民会館', staff: 'a@k-create.co.jp\nb@client.jp' }, st || {}) }); assert.ok(r.ok, JSON.stringify(r)); return tk; }
 
 t('公開の設定: 7枠（10〜17時・昼含む）・受付中', function () {
   var g = E.load(), c = g.call({ action: 'config' });
@@ -33,7 +33,7 @@ t('応募メール: 本人あて（内容・差出人名・返信先は受付担
   var m = g.env.sent;
   assert.strictEqual(m.length, 2);
   assert.strictEqual(m[0].to, 'hanako@example.jp');
-  assert.ok(/尾州物流 お仕事説明会/.test(m[0].subject), m[0].subject);
+  assert.ok(/日建ホームズ お仕事説明会/.test(m[0].subject), m[0].subject);
   assert.ok(m[0].body.indexOf('山田 花子 様') === 0, m[0].body);
   assert.ok(m[0].body.indexOf('希望の時間帯：10:00〜11:00、14:00〜15:00') > 0);
   assert.ok(m[0].body.indexOf('生年月日：1990年4月5日') > 0);
