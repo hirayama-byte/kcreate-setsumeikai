@@ -6,7 +6,7 @@ var SAMPLE = [
   { name: '鈴木 美咲', kana: 'すずき みさき', gender: '女性', birth: '2001-12-24', tel: '070-3456-7890', email: 'misaki@example.jp', wishes: ['13:00〜14:00', '15:00〜16:00', '16:00〜17:00'] },
   { name: '高橋 大輔', kana: 'たかはし だいすけ', gender: '男性', birth: '1995-01-15', tel: '090-4567-8901', email: 'daisuke@example.jp', wishes: ['11:00〜12:00', '13:00〜14:00'] },
   { name: '伊藤 さくら', kana: 'いとう さくら', gender: '女性', birth: '1998-03-30', tel: '080-5678-9012', email: 'sakura@example.jp', wishes: ['10:00〜11:00', '11:00〜12:00'] },
-  { name: '渡辺 翔太', kana: 'わたなべ しょうた', gender: '男性', birth: '1979-10-10', tel: '0586-12-3456', email: 'shota@example.jp', wishes: ['14:00〜15:00'] }
+  { name: '渡辺 翔太', kana: 'わたなべ しょうた', gender: '男性', birth: '1979-10-10', tel: '0586-12-3456', email: 'shota@example.jp', wishes: ['14:00〜15:00', 'その他'], consult: '平日は仕事のため、土曜日の午前中なら参加できます。' }
 ];
 async function seed(call, password) {
   var tk = (await call({ action: 'login', password: password })).token;
