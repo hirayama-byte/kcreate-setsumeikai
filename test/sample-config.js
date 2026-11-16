@@ -3,7 +3,8 @@
 // データはこのブラウザの中（localStorage）だけに残る。window.sampleReset() で最初の状態に戻す
 (function () {
   var BASE = document.currentScript.src.replace(/[^/]*$/, ''); // docs/sample/
-  var KEY = 'setsumeikai-sample-v1', TOKEN = 'a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5';
+  var KEY = 'setsumeikai-sample-v2', // サンプルの架空データ（test/sample-data.js）を変えたら数字を上げる＝前に開いたブラウザも新しいデータで始まる（v2: 2026-11-16 渡辺さんに その他＋相談）
+      TOKEN = 'a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5';
   window.API_URL = 'sample-api';
   window.SAMPLE_TOKEN = TOKEN;
   window.SAMPLE_MODE = true;
