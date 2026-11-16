@@ -16,7 +16,7 @@ function ok(c, m) { if (!c) throw new Error(m || 'NG'); }
 
   await t('フォーム: 説明会名・7枠が出る（スマホ幅で横にはみ出さない）', async function () {
     await p.goto(BASE); await p.waitForSelector('#step-input:not(.hide)');
-    ok((await p.locator('input[name=wish]').count()) === 7, '枠の数');
+    ok((await p.locator('input[name=wish]').count()) === 8, '枠の数（7枠＋その他）'); ok((await p.locator('input[name=wish]').last().getAttribute('value')) === 'その他', '最後がその他'); ok(await p.locator('#consult').isVisible(), 'ご相談内容の欄');
     ok(await p.evaluate(function () { return document.documentElement.scrollWidth <= window.innerWidth; }), '横はみ出し');
     await p.screenshot({ path: path.join(SHOTS, 'form-input.png'), fullPage: true });
   });

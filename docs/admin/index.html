@@ -53,6 +53,8 @@
   .st-不在・折り返し待ち { background: #fdecef; color: #b0304a; }
   .wish { display: block; white-space: nowrap; font-size: 13px; }
   .wish i { font-style: normal; color: var(--muted); font-size: 11px; margin-right: 4px; }
+  .consult { margin-top: 4px; font-size: 12px; white-space: pre-line; min-width: 12em; max-width: 18em; background: #fff7e6; border-radius: 6px; padding: 4px 6px; }
+  .consult i { font-style: normal; font-weight: 700; color: #a35a00; font-size: 11px; margin-right: 4px; }
   .saved { color: var(--accent); font-size: 11px; }
   .warn { background: var(--warn-weak); color: var(--warn); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
   /* 時間割 */
@@ -206,6 +208,7 @@
       <div><label class="t" for="mBirth">生年月日</label><input type="date" id="mBirth" min="1900-01-01"><div class="e" data-e="birth"></div></div>
       <div><label class="t" for="mEmail">メールアドレス</label><input type="email" id="mEmail" maxlength="100"><div class="e" data-e="email"></div></div>
       <div class="full"><label class="t">希望の時間帯（3つまで）</label><div class="wbox" id="mWishes"></div><div class="e" data-e="wishes"></div></div>
+      <div class="full"><label class="t" for="mConsult">ご相談内容（その他の日程など）</label><textarea id="mConsult" rows="2" maxlength="500"></textarea></div>
       <div class="addOnly"><label class="t" for="mSlot">割当</label><select id="mSlot"></select></div>
       <div class="addOnly"><label class="t" for="mStatus">状況</label><select id="mStatus"></select></div>
       <div class="full addOnly"><label class="t" for="mMemo">メモ</label><textarea id="mMemo" rows="3" placeholder="受けた日時・担当・話した内容など"></textarea></div>
@@ -259,6 +262,7 @@ function setTab(t) { S.tab = t; document.querySelectorAll('nav.tabs button').for
 function age(b) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b || ''); if (!m) return ''; var n = new Date(), a = n.getFullYear() - +m[1]; if (n.getMonth() + 1 < +m[2] || (n.getMonth() + 1 === +m[2] && n.getDate() < +m[3])) a--; return a; }
 function bText(b) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b || ''); return m ? m[1] + '/' + (+m[2]) + '/' + (+m[3]) : b; }
 function wishes(a) { return [a.wish1, a.wish2, a.wish3].filter(String); }
+var OTHER = 'その他'; // 希望の時間帯の「その他」（時間割の枠ではない・Code.gs と同じ）
 
 function renderAll() {
   var d = S.d, s = d.settings;
@@ -303,7 +307,7 @@ function renderList() {
       '<td style="white-space:nowrap">' + (a.birth ? esc(bText(a.birth)) + '<div class="sub">' + age(a.birth) + '歳</div>' : '<span class="none">−</span>') + '</td>' +
       '<td style="white-space:nowrap"><a href="tel:' + esc(a.tel.replace(/-/g, '')) + '">' + esc(a.tel) + '</a></td>' +
       '<td>' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '<span class="none">−</span>') + (a.mail ? '<div class="sub" style="color:var(--danger)">送信失敗: ' + esc(a.mail) + '</div>' : '') + '</td>' +
-      '<td>' + wishes(a).map(function (w, i) { return '<span class="wish"><i>第' + (i + 1) + '</i>' + esc(w) + '</span>'; }).join('') + '</td>' +
+      '<td>' + wishes(a).map(function (w, i) { return '<span class="wish"><i>第' + (i + 1) + '</i>' + esc(w) + '</span>'; }).join('') + (a.consult ? '<div class="consult"><i>相談</i>' + esc(a.consult) + '</div>' : '') + '</td>' +
       '<td><select class="eSlot" aria-label="割当">' + slotOpts + '</select></td>' +
       '<td><select class="eSt" aria-label="状況">' + stOpts + '</select></td>' +
       '<td class="memo"><textarea class="eMemo" aria-label="メモ" placeholder="電話した日時・内容など">' + esc(a.memo) + '</textarea><div class="saved"></div></td>' +
@@ -458,11 +462,11 @@ function openModal(a) {
   $('mName').value = a ? a.name : ''; $('mKana').value = a ? a.kana : ''; $('mTel').value = a ? a.tel : ''; $('mGender').value = a ? a.gender : '';
   $('mBirth').value = a ? a.birth : ''; $('mBirth').max = new Date().toISOString().slice(0, 10); $('mEmail').value = a ? a.email : '';
   var ws = a ? wishes(a) : [];
-  $('mWishes').innerHTML = d.slots.map(function (sl) { return '<label><input type="checkbox" value="' + esc(sl) + '"' + (ws.indexOf(sl) >= 0 ? ' checked' : '') + '>' + esc(sl) + '</label>'; }).join('');
+  $('mWishes').innerHTML = d.slots.filter(function (sl) { return sl !== OTHER; }).concat([OTHER]).map(function (sl) { return '<label><input type="checkbox" value="' + esc(sl) + '"' + (ws.indexOf(sl) >= 0 ? ' checked' : '') + '>' + esc(sl) + '</label>'; }).join('');
   $('mWishes').querySelectorAll('input').forEach(function (b) { b.onchange = mLimit; }); mLimit();
   $('mSlot').innerHTML = '<option value="">（未割当）</option>' + d.slots.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
   $('mStatus').innerHTML = d.statuses.map(function (x) { return '<option' + (x === '連絡済み' ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('');
-  $('mMemo').value = ''; $('mMail').checked = false;
+  $('mMemo').value = ''; $('mMail').checked = false; $('mConsult').value = a ? (a.consult || '') : '';
   document.querySelectorAll('#mForm [data-e]').forEach(function (e) { e.textContent = ''; });
   $('modal').classList.remove('hide'); $('mName').focus();
 }
@@ -478,7 +482,7 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$
 $('mForm').onsubmit = function (e) {
   e.preventDefault();
   var data = { name: $('mName').value, kana: $('mKana').value, tel: $('mTel').value, gender: $('mGender').value, birth: $('mBirth').value, email: $('mEmail').value,
-    wishes: Array.prototype.map.call($('mWishes').querySelectorAll('input:checked'), function (b) { return b.value; }) };
+    wishes: Array.prototype.map.call($('mWishes').querySelectorAll('input:checked'), function (b) { return b.value; }), consult: $('mConsult').value };
   var req = M.id ? { action: 'edit', id: M.id, data: data } : { action: 'add', data: Object.assign(data, { slot: $('mSlot').value, status: $('mStatus').value, memo: $('mMemo').value, source: '電話' }), sendMail: $('mMail').checked };
   document.querySelectorAll('#mForm [data-e]').forEach(function (x) { x.textContent = ''; });
   $('mSave').disabled = true; req.token = S.token;
@@ -510,9 +514,9 @@ $('xlsxBtn').onclick = function () {
   setup(ws, cols, s.title + '　応募者一覧（' + rows.length + '名）');
   rows.forEach(function (a) {
     var r = ws.addRow([a.no, a.created.replace(/^\d{4}-/, '').replace('-', '/') + '\n' + a.source, a.name + '\n（' + a.kana + '）', a.gender, a.birth ? bText(a.birth) + '\n（' + age(a.birth) + '歳）' : '', a.tel, a.email,
-      wishes(a).map(function (w, i) { return '第' + (i + 1) + ' ' + w; }).join('\n'), a.slot || '', a.status, a.memo]);
+      wishes(a).map(function (w, i) { return '第' + (i + 1) + ' ' + w; }).join('\n') + (a.consult ? '\n【相談】' + a.consult : ''), a.slot || '', a.status, a.memo]);
     r.eachCell({ includeEmpty: true }, function (c, i) { c.border = border; c.font = { size: 10 }; c.alignment = { vertical: 'top', wrapText: true, horizontal: [1, 4].indexOf(i) >= 0 ? 'center' : 'left' }; });
-    var lines = Math.max(2, wishes(a).length, Math.ceil(String(a.memo || '').length / 30) + (String(a.memo || '').match(/\n/g) || []).length);
+    var lines = Math.max(2, wishes(a).length + (a.consult ? Math.ceil(a.consult.length / 12) + 1 : 0), Math.ceil(String(a.memo || '').length / 30) + (String(a.memo || '').match(/\n/g) || []).length);
     r.height = Math.max(30, lines * 14);
   });
   // 2枚目: 時間割

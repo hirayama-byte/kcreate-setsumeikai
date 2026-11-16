@@ -22,6 +22,10 @@
   .lbl { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 6px; font-size: 15px; }
   .req { background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 6px; }
   .hint { color: var(--muted); font-size: 13px; margin: -2px 0 6px; }
+  .any { background: #8a9794; color: #fff; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 6px; }
+  textarea#consult { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); resize: vertical; }
+  textarea#consult:focus { outline: 3px solid var(--accent-weak); border-color: var(--accent); }
+  .confirm dd.pre { white-space: pre-line; }
   input[type=text], input[type=tel], input[type=email], select { width: 100%; font: inherit; font-size: 16px; padding: 12px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); min-height: 48px; }
   input:focus, select:focus { outline: 3px solid var(--accent-weak); border-color: var(--accent); }
   .bad input, .bad select, .bad .opts { border-color: var(--danger); }
@@ -98,6 +102,9 @@
       <div class="field" data-f="wishes"><div class="lbl" id="wLbl">希望の時間帯<span class="req">必須</span><span class="count" id="wCount">0 / 3</span></div>
         <div class="hint">ご都合のよい時間帯を <b>1〜3つ</b> 選んでください。</div>
         <div class="opts" id="slots" role="group" aria-labelledby="wLbl"></div><div class="err"></div></div>
+      <div class="field" data-f="consult"><label class="lbl" for="consult">ご相談内容<span class="any">任意</span></label>
+        <div class="hint">その他の日程でのご相談を希望の方は、こちらにご相談内容を入力してください。</div>
+        <textarea id="consult" rows="4" maxlength="500" placeholder="例）○日の午後なら参加できます"></textarea><div class="err"></div></div>
       <div class="hp" aria-hidden="true"><label>ウェブサイト<input id="website" type="text" tabindex="-1" autocomplete="off"></label></div>
       <div class="actions"><button class="btn primary" type="submit">入力内容を確認する</button></div>
       <p class="privacy">ご入力いただいた個人情報は、この説明会のご案内・ご連絡のためにだけ使います。</p>
@@ -151,6 +158,7 @@ function fillDays() {
   var o = '<option value="">日</option>'; for (var i = 1; i <= last; i++) o += '<option value="' + i + '">' + i + '日</option>';
   $('bd').innerHTML = o; if (cur && +cur <= last) $('bd').value = cur;
 }
+var OTHER = 'その他'; // 時間帯の最後に出す（Code.gs の OTHER と同じ）
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
 api({ action: 'config' }).then(function (c) {
@@ -159,7 +167,7 @@ api({ action: 'config' }).then(function (c) {
   $('title').textContent = c.title || 'お仕事説明会'; document.title = (c.title || 'お仕事説明会') + ' 応募フォーム';
   $('date').textContent = c.date ? '開催日：' + c.date : ''; $('place').textContent = c.place ? '会場：' + c.place : '';
   if (c.intro) { $('intro').textContent = c.intro; $('intro').classList.remove('hide'); }
-  $('slots').innerHTML = c.slots.map(function (s, i) { return '<label class="opt ck"><input type="checkbox" name="wish" value="' + esc(s) + '"><span>' + esc(s) + '</span></label>'; }).join('');
+  $('slots').innerHTML = c.slots.filter(function (s) { return s !== OTHER; }).concat([OTHER]).map(function (s, i) { return '<label class="opt ck"><input type="checkbox" name="wish" value="' + esc(s) + '"><span>' + esc(s) + '</span></label>'; }).join('');
   document.querySelectorAll('input[name=wish]').forEach(function (b) { b.onchange = limitWishes; });
   show(c.open ? 'step-input' : 'closed');
 }).catch(function () { show('loadErr'); });
@@ -180,6 +188,7 @@ function collect() {
     birth: by && bm && bd ? by + '-' + ('0' + bm).slice(-2) + '-' + ('0' + bd).slice(-2) : '',
     tel: half($('tel').value.trim()).replace(/[()（）\s]/g, ''), email: half($('email').value.trim()).replace(/＠/g, '@'),
     wishes: Array.prototype.map.call(document.querySelectorAll('input[name=wish]:checked'), function (b) { return b.value; }),
+    consult: $('consult').value.replace(/\r\n?/g, '\n').trim(),
     website: $('website').value
   };
 }
@@ -210,8 +219,8 @@ $('form').onsubmit = function (ev) {
   if (Object.keys(e).length) { showErrs(e); return; }
   data = d;
   var b = d.birth.split('-');
-  var rows = [['お名前', d.name], ['ふりがな', d.kana], ['性別', d.gender], ['生年月日', b[0] + '年' + (+b[1]) + '月' + (+b[2]) + '日'], ['電話番号', d.tel], ['メールアドレス', d.email], ['希望の時間帯', d.wishes.join('<br>')]];
-  $('confirmList').innerHTML = rows.map(function (r, i) { return '<div><dt>' + r[0] + '</dt><dd>' + (i === 6 ? r[1].split('<br>').map(esc).join('<br>') : esc(r[1])) + '</dd></div>'; }).join('');
+  var rows = [['お名前', d.name], ['ふりがな', d.kana], ['性別', d.gender], ['生年月日', b[0] + '年' + (+b[1]) + '月' + (+b[2]) + '日'], ['電話番号', d.tel], ['メールアドレス', d.email], ['希望の時間帯', d.wishes.join('\n')], ['ご相談内容', d.consult || '（なし）']];
+  $('confirmList').innerHTML = rows.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd class="pre">' + esc(r[1]) + '</dd></div>'; }).join('');
   $('msgConfirm').classList.remove('show');
   show('step-confirm');
 };

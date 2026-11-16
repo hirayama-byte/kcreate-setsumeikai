@@ -1,8 +1,10 @@
 // お仕事説明会 応募フォーム＋管理（2026-11-05）
 // 画面は GitHub Pages（docs/）。ここは受け口（API）だけ。平山さんの権限で動き、誰でも呼べる（executeAs=USER_DEPLOYING・access=ANYONE_ANONYMOUS）
 // 応募（apply）と画面に出す設定（config）は誰でも。ほかはパスワードでログインしたトークンが必要
-var VERSION = 'v2';
-var HEAD = ['id', 'created', 'name', 'kana', 'gender', 'birth', 'tel', 'email', 'wish1', 'wish2', 'wish3', 'slot', 'status', 'memo', 'updated', 'mail', 'source'];
+var VERSION = 'v3';
+var HEAD = ['id', 'created', 'name', 'kana', 'gender', 'birth', 'tel', 'email', 'wish1', 'wish2', 'wish3', 'slot', 'status', 'memo', 'updated', 'mail', 'source', 'consult'];
+var OTHER = 'その他'; // 希望の時間帯の「その他」（時間割の枠ではない・2026-11-16）
+var CONSULT_MAX = 500; // ご相談内容（任意）の文字数
 var SOURCES = ['フォーム', '電話']; // 受付の経路（source が空＝フォーム）
 var STATUSES = ['未連絡', '連絡済み', '不在・折り返し待ち', '参加確定', '辞退', 'その他'];
 var GENDERS = ['男性', '女性'];
@@ -109,6 +111,8 @@ function publicConfig_() {
 var EMAIL_RE = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/;
 var KANA_RE = /^[ぁ-ゖァ-ヺー・\s　]+$/;
 function clean_(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max || 100); }
+// 改行は残す（ご相談内容など）
+function cleanText_(v, max) { return String(v == null ? '' : v).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, max || 500); }
 function toHalf_(v) { return String(v).replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).replace(/[－ー−‐―]/g, '-'); }
 
 // 入力の確認（画面と同じルール）。正しければ整えた値、だめならエラー
@@ -130,12 +134,13 @@ function validate_(d, s, staff) {
   if (!out.tel) errs.tel = '電話番号を入力してください'; else if (!/^[0-9-]+$/.test(out.tel) || !/^0\d{9,10}$/.test(digits)) errs.tel = '電話番号が正しくありません（例: 090-1234-5678）';
   out.email = toHalf_(clean_(d.email, 100)).replace(/＠/g, '@').toLowerCase();
   if (!out.email) { if (!staff) errs.email = 'メールアドレスを入力してください'; } else if (!EMAIL_RE.test(out.email)) errs.email = 'メールアドレスが正しくありません';
-  var slots = slots_(s), w = Array.isArray(d.wishes) ? d.wishes.map(String) : [], seen = {};
+  var slots = slots_(s).filter(function (x) { return x !== OTHER; }).concat([OTHER]), w = Array.isArray(d.wishes) ? d.wishes.map(String) : [], seen = {};
   w = w.filter(function (x) { if (seen[x]) return false; seen[x] = true; return true; });
   if (!w.length) { if (!staff) errs.wishes = '希望の時間帯を1つ以上選んでください'; }
   else if (w.length > 3) errs.wishes = '希望の時間帯は3つまでです';
   else if (w.some(function (x) { return slots.indexOf(x) < 0; })) errs.wishes = '時間帯の選び方が正しくありません。ページを読み込み直してください';
   out.wishes = w.sort(function (a, b) { return slots.indexOf(a) - slots.indexOf(b); });
+  out.consult = cleanText_(d.consult, CONSULT_MAX);
   return { ok: !Object.keys(errs).length, errors: errs, value: out };
 }
 
@@ -151,7 +156,7 @@ function apply_(d) {
   try {
     var sh = sheet_('応募者');
     id = Utilities.getUuid().slice(0, 8); created = now_();
-    sh.appendRow([id, created, x.name, x.kana, x.gender, x.birth, x.tel, x.email, x.wishes[0] || '', x.wishes[1] || '', x.wishes[2] || '', '', STATUSES[0], '', created, ''].map(safe_));
+    sh.appendRow([id, created, x.name, x.kana, x.gender, x.birth, x.tel, x.email, x.wishes[0] || '', x.wishes[1] || '', x.wishes[2] || '', '', STATUSES[0], '', created, '', '', x.consult].map(safe_));
   } finally { lock.releaseLock(); }
   var mail = sendMails_(s, x, created, true);
   if (mail) setCell_(id, 'mail', mail);
@@ -164,7 +169,7 @@ function sendMails_(s, x, created, toStaff) {
     '氏名': x.name, 'ふりがな': x.kana, '説明会名': s.title, '開催日': s.date, '会場': s.place, '署名': s.signature,
     '希望時間帯': x.wishes.join('、'),
     '応募内容': ['お名前：' + x.name + '（' + x.kana + '）', x.gender ? '性別：' + x.gender : '', x.birth ? '生年月日：' + birthText_(x.birth) : '', '電話番号：' + x.tel, x.email ? 'メールアドレス：' + x.email : '',
-      x.wishes.length ? '希望の時間帯：' + x.wishes.join('、') : ''].filter(String).concat(s.date ? ['開催日：' + s.date] : []).concat(s.place ? ['会場：' + s.place] : []).join('\n')
+      x.wishes.length ? '希望の時間帯：' + x.wishes.join('、') : '', x.consult ? 'ご相談内容：\n' + x.consult : ''].filter(String).concat(s.date ? ['開催日：' + s.date] : []).concat(s.place ? ['会場：' + s.place] : []).join('\n')
   };
   var problems = [], staff = staffList_(s), opt = { name: s.sender_name || DEFAULTS.sender_name };
   var reply = EMAIL_RE.test(s.reply_to) ? s.reply_to : staff[0];
@@ -243,7 +248,7 @@ function add_(d, sendMail) {
   lock.waitLock(20000);
   try {
     id = Utilities.getUuid().slice(0, 8); created = now_();
-    sheet_('応募者').appendRow([id, created, x.name, x.kana, x.gender, x.birth, x.tel, x.email, x.wishes[0] || '', x.wishes[1] || '', x.wishes[2] || '', slot, st, String(d.memo || '').slice(0, 2000), created, '', src].map(safe_));
+    sheet_('応募者').appendRow([id, created, x.name, x.kana, x.gender, x.birth, x.tel, x.email, x.wishes[0] || '', x.wishes[1] || '', x.wishes[2] || '', slot, st, String(d.memo || '').slice(0, 2000), created, '', src, x.consult].map(safe_));
   } finally { lock.releaseLock(); }
   if (sendMail) { var mail = sendMails_(s, x, created, false); if (mail) setCell_(id, 'mail', mail); }
   return { ok: true, id: id };
@@ -260,6 +265,7 @@ function edit_(id, d) {
     var sh = sheet_('応募者'), cur = sh.getRange(r, 1, 1, HEAD.length).getValues()[0];
     ['name', 'kana', 'gender', 'birth', 'tel', 'email'].forEach(function (k) { cur[HEAD.indexOf(k)] = safe_(x[k]); });
     [0, 1, 2].forEach(function (i) { cur[HEAD.indexOf('wish' + (i + 1))] = x.wishes[i] || ''; });
+    if (d.hasOwnProperty('consult')) cur[HEAD.indexOf('consult')] = safe_(x.consult);
     cur[HEAD.indexOf('updated')] = now_();
     sh.getRange(r, 1, 1, HEAD.length).setValues([cur]);
     var o = {}; HEAD.forEach(function (h, j) { o[h] = unsafe_(cur[j]); });

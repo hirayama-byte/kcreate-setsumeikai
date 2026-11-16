@@ -217,5 +217,46 @@ t('前からあるシート（経路の列なし）にも見出しを足す', fu
   assert.strictEqual(sh.data[0][16], 'source'); assert.strictEqual(l[0].source, 'フォーム');
 });
 
+t('希望の時間帯「その他」＋ご相談内容（任意・改行は残す・500字まで）がシート・一覧・メールに入る', function () {
+  var g = E.load(), tk = setup(g);
+  var r = g.call({ action: 'apply', data: good({ wishes: ['その他', '10:00〜11:00'], consult: '20日の午後なら\r\n参加できます' }) });
+  assert.ok(r.ok, JSON.stringify(r));
+  var a = g.call({ action: 'list', token: tk }).applicants[0];
+  assert.deepStrictEqual([a.wish1, a.wish2], ['10:00〜11:00', 'その他'], '「その他」は最後');
+  assert.strictEqual(a.consult, '20日の午後なら\n参加できます');
+  assert.ok(g.env.sent[0].body.indexOf('希望の時間帯：10:00〜11:00、その他') >= 0, g.env.sent[0].body);
+  assert.ok(g.env.sent[0].body.indexOf('ご相談内容：\n20日の午後なら\n参加できます') >= 0);
+  assert.ok(g.env.sent[1].body.indexOf('ご相談内容：') >= 0, '受付担当にも');
+  assert.ok(g.call({ action: 'apply', data: good({ wishes: ['その他'] }) }).ok, '「その他」だけ・相談なしもよい');
+  assert.ok(g.env.sent[2].body.indexOf('ご相談内容') < 0, '相談が空なら本文に出さない');
+  g.call({ action: 'apply', data: good({ consult: 'あ'.repeat(800) }) });
+  assert.strictEqual(g.call({ action: 'list', token: tk }).applicants[2].consult.length, 500);
+  assert.ok(g.call({ action: 'apply', data: good({ wishes: ['10:00〜11:00', '11:00〜12:00', '12:00〜13:00', 'その他'] }) }).errors.wishes, '「その他」も含めて3つまで');
+});
+t('ご相談内容: 電話受付の追加・編集でも入れられる／編集で consult を送らなければ消さない', function () {
+  var g = E.load(), tk = setup(g);
+  assert.ok(g.call({ action: 'add', token: tk, data: { name: '電話 花子', kana: 'でんわ はなこ', tel: '090-1111-2222', wishes: ['その他'], consult: '平日の夕方希望' } }).ok);
+  var a = g.call({ action: 'list', token: tk }).applicants[0];
+  assert.strictEqual(a.wish1, 'その他'); assert.strictEqual(a.consult, '平日の夕方希望');
+  g.call({ action: 'edit', token: tk, id: a.id, data: { name: '電話 花子', kana: 'でんわ はなこ', tel: '090-1111-2222', wishes: ['その他'] } });
+  assert.strictEqual(g.call({ action: 'list', token: tk }).applicants[0].consult, '平日の夕方希望');
+  g.call({ action: 'edit', token: tk, id: a.id, data: { name: '電話 花子', kana: 'でんわ はなこ', tel: '090-1111-2222', wishes: [], consult: '' } });
+  a = g.call({ action: 'list', token: tk }).applicants[0];
+  assert.strictEqual(a.consult, ''); assert.strictEqual(a.wish1, '');
+});
+t('「その他」は時間割の枠にはならない（割当に使えない）', function () {
+  var g = E.load(), tk = setup(g);
+  assert.ok(g.call({ action: 'add', token: tk, data: { name: 'x', kana: 'えっくす', tel: '090-0000-0000', slot: 'その他' } }).error);
+  assert.strictEqual(g.call({ action: 'config' }).slots.indexOf('その他'), -1);
+});
+t('前からあるシート（相談の列なし）にも見出しを足す', function () {
+  var g = E.load(), tk = setup(g);
+  g.call({ action: 'apply', data: good() });
+  var sh = g.book.getSheetByName('応募者'); sh.data[0].length = 17; sh.data[1].length = 17;
+  g.HEAD_OK = false;
+  var l = g.call({ action: 'list', token: tk }).applicants;
+  assert.strictEqual(sh.data[0][17], 'consult'); assert.strictEqual(l[0].consult, '');
+});
+
 console.log((ng ? n + ' 件 OK・' + ng + ' 件 NG' : n + ' 件 OK'));
 process.exit(ng ? 1 : 0);
