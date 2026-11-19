@@ -57,6 +57,14 @@
   Range.prototype.setFormulas = function (vals) { return this.setValues(vals); };
   Range.prototype.setDataValidation = function (rule) { this.sh.validation = this.sh.validation || {}; this.sh.validation[this.c] = rule; return this; };
   Range.prototype.clearContent = function () { var e = []; for (var i = 0; i < this.nr; i++) { var row = []; for (var j = 0; j < this.nc; j++) row.push(''); e.push(row); } return this.setValues(e); };
+  // シートに見えている文字（日付は 1980/10/16 0:00:00 の形・日本時間）
+  Range.prototype.getDisplayValues = function () {
+    return this.getValues().map(function (r) { return r.map(function (v) {
+      if (!(v instanceof Date)) return String(v);
+      var t = new Date(v.getTime() + 9 * 3600000);
+      return t.getUTCFullYear() + '/' + (t.getUTCMonth() + 1) + '/' + t.getUTCDate() + ' ' + t.getUTCHours() + ':' + ('0' + t.getUTCMinutes()).slice(-2) + ':00';
+    }); });
+  };
   Range.prototype.getValue = function () { return this.getValues()[0][0]; };
   Range.prototype.setNumberFormat = function (f) { if (f === '@') for (var j = 0; j < this.nc; j++) this.sh.textCols[this.c + j] = true; return this; };
   Range.prototype.createTextFinder = function (text) {

@@ -91,13 +91,23 @@ function now_() { return Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM
 // 先頭が = + - @ の文字は式として動かないように（シートを開いたときの事故防止）
 function safe_(v) { v = String(v == null ? '' : v); return /^[=+\-@]/.test(v) ? "'" + v : v; }
 function unsafe_(v) { v = String(v == null ? '' : v); return v.charAt(0) === "'" ? v.slice(1) : v; }
+// シートが「1980-10-16」「2026-11-19 20:21」を日付に変えてしまうことがある → シートに見えている文字（disp）から元の形に戻す
+// （日付の値を時刻計算で戻すと、シートのタイムゾーンとの違いで本番は9時間ずれた）
+function cell_(v, h, disp) {
+  if (Object.prototype.toString.call(v) !== '[object Date]') return unsafe_(v);
+  var m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?/.exec(String(disp || ''));
+  if (!m) return unsafe_(disp || v);
+  var p2 = function (x) { return ('0' + x).slice(-2); };
+  return m[1] + '-' + p2(m[2]) + '-' + p2(m[3]) + (h !== 'birth' && m[4] ? ' ' + p2(m[4]) + ':' + m[5] : '');
+}
 
 function rows_() {
   var sh = sheet_('応募者'), n = sh.getLastRow();
   if (n < 2) return [];
-  return sh.getRange(2, 1, n - 1, HEAD.length).getValues().map(function (r, i) {
+  var rg = sh.getRange(2, 1, n - 1, HEAD.length), dv = rg.getDisplayValues();
+  return rg.getValues().map(function (r, i) {
     var o = { row: i + 2 };
-    HEAD.forEach(function (h, j) { o[h] = unsafe_(r[j]); });
+    HEAD.forEach(function (h, j) { o[h] = cell_(r[j], h, dv[i][j]); });
     return o;
   }).filter(function (o) { return o.id; });
 }
@@ -226,13 +236,13 @@ function update_(id, f) {
   try {
     var r = findRow_(id);
     if (!r) return { error: 'この応募は見つかりません（削除された可能性があります）' };
-    var sh = sheet_('応募者'), cur = sh.getRange(r, 1, 1, HEAD.length).getValues()[0];
+    var sh = sheet_('応募者'), cur = sh.getRange(r, 1, 1, HEAD.length).getValues()[0], disp = sh.getRange(r, 1, 1, HEAD.length).getDisplayValues()[0];
     if (f.hasOwnProperty('slot')) { var sl = String(f.slot || ''); if (sl && slots_(s).indexOf(sl) < 0) return { error: '時間帯が正しくありません' }; cur[HEAD.indexOf('slot')] = sl; }
     if (f.hasOwnProperty('status')) { if (STATUSES.indexOf(String(f.status)) < 0) return { error: '状況が正しくありません' }; cur[HEAD.indexOf('status')] = String(f.status); }
     if (f.hasOwnProperty('memo')) cur[HEAD.indexOf('memo')] = safe_(String(f.memo || '').slice(0, 2000));
     cur[HEAD.indexOf('updated')] = now_();
     sh.getRange(r, 1, 1, HEAD.length).setValues([cur]);
-    var o = {}; HEAD.forEach(function (h, j) { o[h] = unsafe_(cur[j]); });
+    var o = {}; HEAD.forEach(function (h, j) { o[h] = cell_(cur[j], h, disp[j]); });
     return { ok: true, applicant: o };
   } finally { lock.releaseLock(); }
 }
@@ -262,13 +272,13 @@ function edit_(id, d) {
   try {
     var r = findRow_(id);
     if (!r) return { error: 'この応募は見つかりません（削除された可能性があります）' };
-    var sh = sheet_('応募者'), cur = sh.getRange(r, 1, 1, HEAD.length).getValues()[0];
+    var sh = sheet_('応募者'), cur = sh.getRange(r, 1, 1, HEAD.length).getValues()[0], disp = sh.getRange(r, 1, 1, HEAD.length).getDisplayValues()[0];
     ['name', 'kana', 'gender', 'birth', 'tel', 'email'].forEach(function (k) { cur[HEAD.indexOf(k)] = safe_(x[k]); });
     [0, 1, 2].forEach(function (i) { cur[HEAD.indexOf('wish' + (i + 1))] = x.wishes[i] || ''; });
     if (d.hasOwnProperty('consult')) cur[HEAD.indexOf('consult')] = safe_(x.consult);
     cur[HEAD.indexOf('updated')] = now_();
     sh.getRange(r, 1, 1, HEAD.length).setValues([cur]);
-    var o = {}; HEAD.forEach(function (h, j) { o[h] = unsafe_(cur[j]); });
+    var o = {}; HEAD.forEach(function (h, j) { o[h] = cell_(cur[j], h, disp[j]); });
     return { ok: true, applicant: o };
   } finally { lock.releaseLock(); }
 }

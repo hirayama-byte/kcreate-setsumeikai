@@ -258,5 +258,16 @@ t('前からあるシート（相談の列なし）にも見出しを足す', fu
   assert.strictEqual(sh.data[0][17], 'consult'); assert.strictEqual(l[0].consult, '');
 });
 
+t('シートが日付に変えた生年月日・応募日時も、シートに見えている文字で 1980-10-16／2026-11-19 20:21 と返す', function () {
+  var g = E.load(), tk = setup(g);
+  g.call({ action: 'apply', data: good() });
+  g.book.setSpreadsheetTimeZone('America/Los_Angeles'); var sh = g.book.getSheetByName('応募者');
+  sh.data[1][5] = new Date('1980-10-16T00:00:00+09:00'); sh.data[1][1] = new Date('2026-11-19T20:21:00+09:00'); sh.data[1][14] = new Date('2026-11-19T20:21:00+09:00');
+  var a = g.call({ action: 'list', token: tk }).applicants[0];
+  assert.strictEqual(a.birth, '1980-10-16'); assert.strictEqual(a.created, '2026-11-19 20:21'); assert.strictEqual(a.updated, '2026-11-19 20:21');
+  var u = g.call({ action: 'update', token: tk, id: a.id, fields: { memo: 'x' } });
+  assert.strictEqual(u.applicant.birth, '1980-10-16'); assert.strictEqual(u.applicant.created, '2026-11-19 20:21');
+});
+
 console.log((ng ? n + ' 件 OK・' + ng + ' 件 NG' : n + ' 件 OK'));
 process.exit(ng ? 1 : 0);
