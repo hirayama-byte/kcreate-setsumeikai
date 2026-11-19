@@ -94,11 +94,28 @@ function unsafe_(v) { v = String(v == null ? '' : v); return v.charAt(0) === "'"
 // シートが「1980-10-16」「2026-11-19 20:21」を日付に変えてしまうことがある → シートに見えている文字（disp）から元の形に戻す
 // （日付の値を時刻計算で戻すと、シートのタイムゾーンとの違いで本番は9時間ずれた）
 function cell_(v, h, disp) {
+  if (h === 'tel') return formatTel_(unsafe_(v));
   if (Object.prototype.toString.call(v) !== '[object Date]') return unsafe_(v);
   var m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?/.exec(String(disp || ''));
   if (!m) return unsafe_(disp || v);
   var p2 = function (x) { return ('0' + x).slice(-2); };
   return m[1] + '-' + p2(m[2]) + '-' + p2(m[3]) + (h !== 'birth' && m[4] ? ' ' + p2(m[4]) + ':' + m[5] : '');
+}
+
+// 電話番号を 090-1234-5678 の形に。シートが数字にして頭の0を落としたもの（9012345678）も戻す。ハイフン入りで入力されたものはそのまま
+var AREA4_ = /^0(586|587|584|585|581|574|575|576|577|578|572|573|567|568|569|561|562|563|564|565|566|531|532|533|536|537|538|539|595|596|597|598|599)/;
+function formatTel_(v) {
+  var s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  if (/-/.test(s)) return s;
+  var d = s.replace(/\D/g, '');
+  if (!/^0/.test(d) && (d.length === 9 || d.length === 10)) d = '0' + d;
+  if (d.length === 11 && /^0[5-9]0/.test(d)) return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7);   // 携帯・IP
+  if (d.length === 10 && /^0(120|800)/.test(d)) return d.slice(0, 4) + '-' + d.slice(4, 7) + '-' + d.slice(7); // フリーダイヤル
+  if (d.length === 10 && /^0[36]/.test(d)) return d.slice(0, 2) + '-' + d.slice(2, 6) + '-' + d.slice(6);      // 東京・大阪
+  if (d.length === 10 && AREA4_.test(d)) return d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6);        // 一宮 0586 など
+  if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);                          // 名古屋 052 など
+  return s;
 }
 
 function rows_() {
@@ -142,6 +159,7 @@ function validate_(d, s, staff) {
   out.tel = toHalf_(clean_(d.tel, 20)).replace(/[()（）\s]/g, '');
   var digits = out.tel.replace(/-/g, '');
   if (!out.tel) errs.tel = '電話番号を入力してください'; else if (!/^[0-9-]+$/.test(out.tel) || !/^0\d{9,10}$/.test(digits)) errs.tel = '電話番号が正しくありません（例: 090-1234-5678）';
+  else out.tel = formatTel_(out.tel);
   out.email = toHalf_(clean_(d.email, 100)).replace(/＠/g, '@').toLowerCase();
   if (!out.email) { if (!staff) errs.email = 'メールアドレスを入力してください'; } else if (!EMAIL_RE.test(out.email)) errs.email = 'メールアドレスが正しくありません';
   var slots = slots_(s).filter(function (x) { return x !== OTHER; }).concat([OTHER]), w = Array.isArray(d.wishes) ? d.wishes.map(String) : [], seen = {};

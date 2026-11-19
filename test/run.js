@@ -269,5 +269,17 @@ t('シートが日付に変えた生年月日・応募日時も、シートに�
   assert.strictEqual(u.applicant.birth, '1980-10-16'); assert.strictEqual(u.applicant.created, '2026-11-19 20:21');
 });
 
+t('電話番号: ハイフンなしでも 090-1234-5678 の形に・シートが数字にして0が消えたものも戻す', function () {
+  var g = E.load(), tk = setup(g);
+  g.call({ action: 'apply', data: good({ tel: '09012345678' }) });
+  var sh = g.book.getSheetByName('応募者');
+  assert.strictEqual(sh.data[1][6], '090-1234-5678');
+  sh.data[1][6] = 9012345678;
+  assert.strictEqual(g.call({ action: 'list', token: tk }).applicants[0].tel, '090-1234-5678');
+  sh.data[1][6] = 586123456; assert.strictEqual(g.call({ action: 'list', token: tk }).applicants[0].tel, '0586-12-3456');
+  sh.data[1][6] = 521234567; assert.strictEqual(g.call({ action: 'list', token: tk }).applicants[0].tel, '052-123-4567');
+  sh.data[1][6] = '0586-72-1234'; assert.strictEqual(g.call({ action: 'list', token: tk }).applicants[0].tel, '0586-72-1234');
+});
+
 console.log((ng ? n + ' 件 OK・' + ng + ' 件 NG' : n + ' 件 OK'));
 process.exit(ng ? 1 : 0);
